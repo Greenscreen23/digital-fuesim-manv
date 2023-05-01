@@ -1,3 +1,6 @@
 [submodule "test-scenarios"]
 	path = test-scenarios
 	url = https://github.com/hpi-sam/digital-fuesim-manv-public-test-scenarios.git
+[submodule "node-zmq-raft"]
+	path = node-zmq-raft
+	url = https://github.com/Greenscreen23/node-zmq-raft.git

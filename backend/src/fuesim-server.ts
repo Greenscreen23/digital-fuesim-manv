@@ -6,10 +6,13 @@ import { ExerciseHttpServer } from './exercise/http-server';
 import { Config } from './config';
 import type { DatabaseService } from './database/services/database-service';
 import type { ExerciseWrapper } from './exercise/exercise-wrapper';
+import fs from 'fs';
+import raft from 'node-zmq-raft';
 
 export class FuesimServer {
     private readonly _httpServer: ExerciseHttpServer;
     private readonly _websocketServer: ExerciseWebsocketServer;
+    private _raftServer?: raft.server.ZmqRaft;
 
     private readonly saveTick = async () => {
         const exercisesToSave: ExerciseWrapper[] = [];
@@ -71,13 +74,22 @@ export class FuesimServer {
         this.saveTickInterval
     );
 
-    constructor(private readonly databaseService: DatabaseService) {
+    constructor(
+        private readonly databaseService: DatabaseService,
+        raftConfigPath: string
+    ) {
         const app = express();
         this._websocketServer = new ExerciseWebsocketServer(app);
         this._httpServer = new ExerciseHttpServer(app, databaseService);
         if (Config.useDb) {
             this.saveHandler.start();
         }
+        const raftConfig = JSON.parse(
+            fs.readFileSync(raftConfigPath).toString()
+        );
+        raft.server.builder.build(raftConfig).then((raftServer) => {
+            this._raftServer = raftServer;
+        });
     }
 
     public get websocketServer(): ExerciseWebsocketServer {
@@ -86,6 +98,13 @@ export class FuesimServer {
 
     public get httpServer(): ExerciseHttpServer {
         return this._httpServer;
+    }
+
+    public get raftServer(): raft.server.ZmqRaft {
+        if (!this._raftServer) {
+            throw new Error('Raft server not initialized yet');
+        }
+        return this._raftServer;
     }
 
     public async destroy() {

@@ -1,0 +1,28 @@
+{
+    "id": "local",
+    "secret": "",
+    "peers": [
+        { "id": "local", "url": "tcp://127.0.0.1:8047"}
+    ],
+    "data": {
+        "path": "raft",
+        "raft": "raft.pers",
+        "log": "log",
+        "snapshot": "snap",
+        "state": "state.pers"
+    },
+    "broadcast": {
+        "url": "tcp://127.0.0.1:8048"
+    },
+    "webmonitor": {
+        "enable": true,
+        "host": "localhost",
+        "port": 8050,
+        "proto": null,
+        "bind": {
+            "proto": "http",
+            "host": "::",
+            "port": null
+        }
+    }
+}

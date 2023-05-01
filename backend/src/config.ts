@@ -1,6 +1,7 @@
 import './utils/dotenv-config';
 import dotenv from 'dotenv';
 import { bool, cleanEnv, makeValidator, num, str } from 'envalid';
+import fs from 'fs';
 
 export class Config {
     private static _websocketPort?: number;
@@ -22,6 +23,10 @@ export class Config {
     private static _dbHost?: string;
 
     private static _dbPort?: number;
+
+    private static _useRaft?: boolean;
+
+    private static _raftConfigPath?: string;
 
     public static get websocketPort(): number {
         this.throwIfNotInitialized();
@@ -73,6 +78,16 @@ export class Config {
         return this._dbPort!;
     }
 
+    public static get useRaft(): boolean {
+        this.throwIfNotInitialized();
+        return this._useRaft!;
+    }
+
+    public static get raftConfigPath(): string {
+        this.throwIfNotInitialized();
+        return this._raftConfigPath!;
+    }
+
     private static createTCPPortValidator() {
         return makeValidator((x) => {
             const int = Number.parseInt(x);
@@ -80,6 +95,15 @@ export class Config {
                 throw new TypeError('Expected a valid port number');
             }
             return int;
+        });
+    }
+
+    private static createFilePathValidator() {
+        return makeValidator((x) => {
+            if (!fs.existsSync(x)) {
+                throw new TypeError(`File "${x}" does not exist.`);
+            }
+            return x;
         });
     }
 
@@ -91,6 +115,7 @@ export class Config {
 
     private static parseVariables() {
         const tcpPortValidator = this.createTCPPortValidator();
+        const filePathValidator = this.createFilePathValidator();
         return cleanEnv(process.env, {
             DFM_WEBSOCKET_PORT: tcpPortValidator({ default: 3200 }),
             DFM_WEBSOCKET_PORT_TESTING: tcpPortValidator({ default: 13200 }),
@@ -126,6 +151,10 @@ export class Config {
             DFM_DB_HOST_TESTING: str({ default: '127.0.0.1' }),
             DFM_DB_PORT: tcpPortValidator({ default: 5432 }),
             DFM_DB_PORT_TESTING: tcpPortValidator({ default: 5432 }),
+            DFM_USE_RAFT: bool({ default: false }),
+            DFM_USE_RAFT_TESTING: bool({ default: undefined }),
+            DFM_RAFT_CONFIG_PATH: filePathValidator(this.isTrue(process.env['DFM_USE_RAFT']) ? {} : { default: undefined }),
+            DFM_RAFT_CONFIG_PATH_TESTING: filePathValidator({ default: undefined }),
         });
     }
 
@@ -174,6 +203,8 @@ export class Config {
                 : env.DFM_DB_LOG;
         this._dbHost = testing ? env.DFM_DB_HOST_TESTING : env.DFM_DB_HOST;
         this._dbPort = testing ? env.DFM_DB_PORT_TESTING : env.DFM_DB_PORT;
+        this._useRaft = testing ? env.DFM_USE_RAFT_TESTING : env.DFM_USE_RAFT;
+        this._raftConfigPath = testing ? env.DFM_RAFT_CONFIG_PATH_TESTING : env.DFM_RAFT_CONFIG_PATH;
         this.isInitialized = true;
     }
 }

@@ -13,6 +13,8 @@ COPY ./ $PRODUCTION_PATH
 # set workdir
 WORKDIR $PRODUCTION_PATH
 
+RUN apt-get update && apt-get install --no-install-recommends python3 build-essential -y
+
 # install for production and cleanup
 RUN npm run deployment
 
@@ -96,6 +98,14 @@ COPY --chown=www-data:www-data --from=builder $PRODUCTION_PATH/shared/package.js
 COPY --chown=www-data:www-data --from=builder $PRODUCTION_PATH/backend/dist $PRODUCTION_PATH/backend/dist
 COPY --chown=www-data:www-data --from=builder $PRODUCTION_PATH/backend/node_modules $PRODUCTION_PATH/backend/node_modules
 COPY --chown=www-data:www-data --from=builder $PRODUCTION_PATH/backend/package.json $PRODUCTION_PATH/backend
+
+# copy node-zmq-raft
+COPY --chown=www-data:www-data --from=builder $PRODUCTION_PATH/node-zmq-raft/lib $PRODUCTION_PATH/node-zmq-raft/lib
+COPY --chown=www-data:www-data --from=builder $PRODUCTION_PATH/node-zmq-raft/bin $PRODUCTION_PATH/node-zmq-raft/bin
+COPY --chown=www-data:www-data --from=builder $PRODUCTION_PATH/node-zmq-raft/static $PRODUCTION_PATH/node-zmq-raft/static
+COPY --chown=www-data:www-data --from=builder $PRODUCTION_PATH/node-zmq-raft/node_modules $PRODUCTION_PATH/node-zmq-raft/node_modules
+COPY --chown=www-data:www-data --from=builder $PRODUCTION_PATH/node-zmq-raft/index.js $PRODUCTION_PATH/node-zmq-raft/index.js
+COPY --chown=www-data:www-data --from=builder $PRODUCTION_PATH/node-zmq-raft/package.json $PRODUCTION_PATH/node-zmq-raft
 
 # set correct working directory for docker-entrypoint.sh
 WORKDIR $PRODUCTION_PATH/backend

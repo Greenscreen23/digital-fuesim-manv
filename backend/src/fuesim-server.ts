@@ -1,4 +1,6 @@
+import fs from 'node:fs';
 import express from 'express';
+import raft from 'node-zmq-raft';
 import { PeriodicEventHandler } from './exercise/periodic-events/periodic-event-handler';
 import { exerciseMap } from './exercise/exercise-map';
 import { ExerciseWebsocketServer } from './exercise/websocket';
@@ -6,8 +8,6 @@ import { ExerciseHttpServer } from './exercise/http-server';
 import { Config } from './config';
 import type { DatabaseService } from './database/services/database-service';
 import type { ExerciseWrapper } from './exercise/exercise-wrapper';
-import fs from 'fs';
-import raft from 'node-zmq-raft';
 
 export class FuesimServer {
     private readonly _httpServer: ExerciseHttpServer;

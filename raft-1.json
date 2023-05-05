@@ -1,8 +1,10 @@
 {
-    "id": "local",
+    "id": "raft1",
     "secret": "",
     "peers": [
-        { "id": "local", "url": "tcp://127.0.0.1:8047"}
+        { "id": "raft1", "url": "tcp://172.16.238.11:8047"},
+        { "id": "raft2", "url": "tcp://172.16.238.12:8047"},
+        { "id": "raft3", "url": "tcp://172.16.238.13:8047"}
     ],
     "data": {
         "path": "raft",
@@ -17,7 +19,7 @@
     "webmonitor": {
         "enable": true,
         "host": "localhost",
-        "port": 8050,
+        "port": 8051,
         "proto": null,
         "bind": {
             "proto": "http",

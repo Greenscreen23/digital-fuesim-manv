@@ -1,0 +1,30 @@
+{
+    "id": "raft2",
+    "secret": "",
+    "peers": [
+        { "id": "raft1", "url": "tcp://172.16.238.11:8047"},
+        { "id": "raft2", "url": "tcp://172.16.238.12:8047"},
+        { "id": "raft3", "url": "tcp://172.16.238.13:8047"}
+    ],
+    "data": {
+        "path": "raft",
+        "raft": "raft.pers",
+        "log": "log",
+        "snapshot": "snap",
+        "state": "state.pers"
+    },
+    "broadcast": {
+        "url": "tcp://127.0.0.1:8048"
+    },
+    "webmonitor": {
+        "enable": true,
+        "host": "localhost",
+        "port": 8052,
+        "proto": null,
+        "bind": {
+            "proto": "http",
+            "host": "::",
+            "port": null
+        }
+    }
+}

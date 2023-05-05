@@ -1,33 +1,69 @@
 version: '3'
 services:
-    digital-fuesim-manv:
-        depends_on:
-            - db
-        # image: digitalfuesimmanv/dfm
-        # Use this to build the container for yourself:
+    dfm:
         build:
-           context: .
-           dockerfile: docker/Dockerfile
+            context: .
+            dockerfile: docker/Dockerfile
+    dfm1:
+        image: digital-fuesim-manv-dfm
+        # build:
+        #    context: .
+        #    dockerfile: docker/Dockerfile
         restart: unless-stopped
-        container_name: digital-fuesim-manv
+        container_name: digital-fuesim-manv-1
         environment:
             - DFM_USE_RAFT=true
-            - DFM_RAFT_CONFIG_PATH=/usr/local/app/backend/raft.json
+            - DFM_RAFT_CONFIG_PATH=/usr/local/app/raft.json
         ports:
-            - 80:80
-        # Use this to expose the webmonitor your host machine
-            - 127.0.0.1:8050:8050
-        # uncomment port 443 if HTTPS is used
-        #    - 443:443
+            - 127.0.0.1:8051:8051
         env_file:
             - .env
         volumes:
-            - dfm-data:/${DFM_PERSISTENT_DATA_PATH}
-            - ./backend/raft.json:/usr/local/app/backend/raft.json
-            # To overwrite the contents of the about pages, mount a directory into the container
-            # The directory can contain imprint.html, privacy.html and license.html
-            # Example
-            # - ./about:/usr/local/app/frontend/dist/digital-fuesim-manv/assets/about
+            - dfm-data-1:/${DFM_PERSISTENT_DATA_PATH}
+            - ./raft-1.json:/usr/local/app/raft.json
+        networks:
+            raft:
+                ipv4_address: 172.16.238.11
+    dfm2:
+        image: digital-fuesim-manv-dfm
+        # build:
+        #    context: .
+        #    dockerfile: docker/Dockerfile
+        restart: unless-stopped
+        container_name: digital-fuesim-manv-2
+        environment:
+            - DFM_USE_RAFT=true
+            - DFM_RAFT_CONFIG_PATH=/usr/local/app/raft.json
+        ports:
+            - 127.0.0.1:8052:8052
+        env_file:
+            - .env
+        volumes:
+            - dfm-data-2:/${DFM_PERSISTENT_DATA_PATH}
+            - ./raft-2.json:/usr/local/app/raft.json
+        networks:
+            raft:
+                ipv4_address: 172.16.238.12
+    dfm3:
+        image: digital-fuesim-manv-dfm
+        # build:
+        #    context: .
+        #    dockerfile: docker/Dockerfile
+        restart: unless-stopped
+        container_name: digital-fuesim-manv-3
+        environment:
+            - DFM_USE_RAFT=true
+            - DFM_RAFT_CONFIG_PATH=/usr/local/app/raft.json
+        ports:
+            - 127.0.0.1:8053:8053
+        env_file:
+            - .env
+        volumes:
+            - dfm-data-3:/${DFM_PERSISTENT_DATA_PATH}
+            - ./raft-3.json:/usr/local/app/raft.json
+        networks:
+            raft:
+                ipv4_address: 172.16.238.13
     db:
         image: postgres:14
         container_name: dfm_postgres
@@ -41,8 +77,17 @@ services:
             - POSTGRES_PASSWORD=${DFM_DB_PASSWORD}
             - POSTGRES_DB=${DFM_DB_NAME}
 
+networks:
+  raft:
+    ipam:
+        driver: default
+        config:
+            - subnet: 172.16.238.0/24
+
 volumes:
     # database is in this volume
     dfm_db:
     # needed to keep persistency, right now SSL
-    dfm-data:
+    dfm-data-1:
+    dfm-data-2:
+    dfm-data-3:

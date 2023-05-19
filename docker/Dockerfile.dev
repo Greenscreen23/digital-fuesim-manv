@@ -3,15 +3,44 @@ ARG DEVELOPMENT_PATH="/usr/local/app"
 FROM node:18-bullseye-slim
 ARG DEVELOPMENT_PATH
 
-WORKDIR $DEVELOPMENT_PATH
 RUN apt update && apt upgrade -y && apt install -y python3 build-essential
 
+COPY ./tsconfig.base.json $DEVELOPMENT_PATH/
+COPY ./docker/docker-entrypoint.dev.sh /docker-entrypoint.dev.sh
+RUN chmod +x /docker-entrypoint.dev.sh
 
-COPY ./ $DEVELOPMENT_PATH/
-RUN chmod +x $DEVELOPMENT_PATH/docker/docker-entrypoint.dev.sh
+COPY ["./package.json", "./package-lock.json", "./.npmrc", "$DEVELOPMENT_PATH/"]
+WORKDIR $DEVELOPMENT_PATH
+RUN npm i
 
-RUN npm run setup:ci
+COPY ["./node-zmq-raft/package.json", "./node-zmq-raft/package-lock.json", "$DEVELOPMENT_PATH/node-zmq-raft/"]
+WORKDIR $DEVELOPMENT_PATH/node-zmq-raft
+RUN npm i
+
+COPY ["./shared/package.json", "./shared/package-lock.json", "./shared/.npmrc", "$DEVELOPMENT_PATH/shared/"]
+WORKDIR $DEVELOPMENT_PATH/shared
+RUN npm i
+
+COPY ["./frontend/package.json", "./frontend/package-lock.json", "./frontend/.npmrc", "$DEVELOPMENT_PATH/frontend/"]
+WORKDIR $DEVELOPMENT_PATH/frontend
+RUN npm i
+
+COPY ["./backend/package.json", "./backend/package-lock.json", "./backend/.npmrc", "$DEVELOPMENT_PATH/backend/"]
+WORKDIR $DEVELOPMENT_PATH/backend
+RUN npm i
+
+COPY ./node-zmq-raft $DEVELOPMENT_PATH/node-zmq-raft
+
+COPY ./shared $DEVELOPMENT_PATH/shared
+WORKDIR $DEVELOPMENT_PATH/shared
 RUN npm run build
 
+COPY ./frontend $DEVELOPMENT_PATH/frontend
+WORKDIR $DEVELOPMENT_PATH/frontend
+RUN npm run build
 
-CMD [ "/bin/bash", "-c", "/usr/local/app/docker/docker-entrypoint.dev.sh" ]
+COPY ./backend $DEVELOPMENT_PATH/backend
+WORKDIR $DEVELOPMENT_PATH/backend
+RUN npm run build
+
+CMD [ "/bin/bash", "-c", "/docker-entrypoint.dev.sh" ]

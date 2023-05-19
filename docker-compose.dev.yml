@@ -1,14 +1,10 @@
 version: '3'
 services:
-    dfm:
-        build:
-            context: .
-            dockerfile: docker/Dockerfile.dev
     dfm1:
-        image: digital-fuesim-manv-dfm
-        # build:
-        #    context: .
-        #    dockerfile: docker/Dockerfile
+        image: digital-fuesim-manv-dfm-raft
+        build:
+           context: .
+           dockerfile: docker/Dockerfile.dev
         restart: unless-stopped
         container_name: digital-fuesim-manv-1
         environment:
@@ -28,7 +24,7 @@ services:
             raft:
                 ipv4_address: 172.16.238.11
     dfm2:
-        image: digital-fuesim-manv-dfm
+        image: digital-fuesim-manv-dfm-raft
         # build:
         #    context: .
         #    dockerfile: docker/Dockerfile
@@ -50,7 +46,7 @@ services:
             raft:
                 ipv4_address: 172.16.238.12
     dfm3:
-        image: digital-fuesim-manv-dfm
+        image: digital-fuesim-manv-dfm-raft
         # build:
         #    context: .
         #    dockerfile: docker/Dockerfile

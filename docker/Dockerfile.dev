@@ -1,0 +1,17 @@
+ARG DEVELOPMENT_PATH="/usr/local/app"
+
+FROM node:18-bullseye-slim
+ARG DEVELOPMENT_PATH
+
+WORKDIR $DEVELOPMENT_PATH
+RUN apt update && apt upgrade -y && apt install -y python3 build-essential
+
+
+COPY ./ $DEVELOPMENT_PATH/
+RUN chmod +x $DEVELOPMENT_PATH/docker/docker-entrypoint.dev.sh
+
+RUN npm run setup:ci
+RUN npm run build
+
+
+CMD [ "/bin/bash", "-c", "/usr/local/app/docker/docker-entrypoint.dev.sh" ]

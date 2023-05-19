@@ -28,6 +28,8 @@ export class Config {
 
     private static _raftConfigPath?: string;
 
+    private static _raftPort?: number;
+
     public static get websocketPort(): number {
         this.throwIfNotInitialized();
         return this._websocketPort!;
@@ -86,6 +88,11 @@ export class Config {
     public static get raftConfigPath(): string {
         this.throwIfNotInitialized();
         return this._raftConfigPath!;
+    }
+
+    public static get raftPort(): number {
+        this.throwIfNotInitialized();
+        return this._raftPort!;
     }
 
     private static createTCPPortValidator() {
@@ -155,6 +162,8 @@ export class Config {
             DFM_USE_RAFT_TESTING: bool({ default: undefined }),
             DFM_RAFT_CONFIG_PATH: filePathValidator(this.isTrue(process.env['DFM_USE_RAFT']) ? {} : { default: undefined }),
             DFM_RAFT_CONFIG_PATH_TESTING: filePathValidator({ default: undefined }),
+            DFM_RAFT_PORT: tcpPortValidator({ default: 8047 }),
+            DFM_RAFT_PORT_TESTING: tcpPortValidator({ default: 8047 }),
         });
     }
 
@@ -205,6 +214,7 @@ export class Config {
         this._dbPort = testing ? env.DFM_DB_PORT_TESTING : env.DFM_DB_PORT;
         this._useRaft = testing ? env.DFM_USE_RAFT_TESTING : env.DFM_USE_RAFT;
         this._raftConfigPath = testing ? env.DFM_RAFT_CONFIG_PATH_TESTING : env.DFM_RAFT_CONFIG_PATH;
+        this._raftPort = testing ? env.DFM_RAFT_PORT_TESTING : env.DFM_RAFT_PORT;
         this.isInitialized = true;
     }
 }

@@ -105,7 +105,7 @@ COPY --chown=www-data:www-data --from=builder $PRODUCTION_PATH/node-zmq-raft/bin
 COPY --chown=www-data:www-data --from=builder $PRODUCTION_PATH/node-zmq-raft/static $PRODUCTION_PATH/node-zmq-raft/static
 COPY --chown=www-data:www-data --from=builder $PRODUCTION_PATH/node-zmq-raft/node_modules $PRODUCTION_PATH/node-zmq-raft/node_modules
 COPY --chown=www-data:www-data --from=builder $PRODUCTION_PATH/node-zmq-raft/index.js $PRODUCTION_PATH/node-zmq-raft/index.js
-COPY --chown=www-data:www-data --from=builder $PRODUCTION_PATH/node-zmq-raft/package.json $PRODUCTION_PATH/node-zmq-raft
+COPY --chown=www-data:www-data --from=builder $PRODUCTION_PATH/node-zmq-raft/package.json $PRODUCTION_PATH/node-zmq-raft/package.json
 
 # set correct working directory for docker-entrypoint.sh
 WORKDIR $PRODUCTION_PATH/backend

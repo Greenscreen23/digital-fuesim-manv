@@ -13,6 +13,7 @@ export class FuesimServer {
     private readonly _httpServer: ExerciseHttpServer;
     private readonly _websocketServer: ExerciseWebsocketServer;
     private _raftServer?: raft.server.ZmqRaft;
+    private _raftClient?: raft.client.ZmqRaftSubscriber;
 
     private readonly saveTick = async () => {
         const exercisesToSave: ExerciseWrapper[] = [];
@@ -76,7 +77,8 @@ export class FuesimServer {
 
     constructor(
         private readonly databaseService: DatabaseService,
-        raftConfigPath: string
+        raftConfigPath: string,
+        raftPort: number,
     ) {
         const app = express();
         this._websocketServer = new ExerciseWebsocketServer(app);
@@ -89,6 +91,7 @@ export class FuesimServer {
         );
         raft.server.builder.build(raftConfig).then((raftServer) => {
             this._raftServer = raftServer;
+            this._raftClient = new raft.client.ZmqRaftSubscriber(undefined, { url: `tcp://localhost:${raftPort}` })
         });
     }
 
@@ -117,3 +120,4 @@ export class FuesimServer {
         }
     }
 }
+

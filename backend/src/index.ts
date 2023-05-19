@@ -63,7 +63,7 @@ async function main() {
         }
     }
     // eslint-disable-next-line no-new
-    new FuesimServer(databaseService, Config.raftConfigPath);
+    new FuesimServer(databaseService, Config.raftConfigPath, Config.raftPort);
 }
 
 main();

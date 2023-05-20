@@ -5,10 +5,6 @@ ARG DEVELOPMENT_PATH
 
 RUN apt update && apt upgrade -y && apt install -y python3 build-essential
 
-COPY ./tsconfig.base.json $DEVELOPMENT_PATH/
-COPY ./docker/docker-entrypoint.dev.sh /docker-entrypoint.dev.sh
-RUN chmod +x /docker-entrypoint.dev.sh
-
 COPY ["./package.json", "./package-lock.json", "./.npmrc", "$DEVELOPMENT_PATH/"]
 WORKDIR $DEVELOPMENT_PATH
 RUN npm i
@@ -31,6 +27,8 @@ RUN npm i
 
 COPY ./node-zmq-raft $DEVELOPMENT_PATH/node-zmq-raft
 
+COPY ./tsconfig.base.json $DEVELOPMENT_PATH/
+
 COPY ./shared $DEVELOPMENT_PATH/shared
 WORKDIR $DEVELOPMENT_PATH/shared
 RUN npm run build
@@ -42,5 +40,8 @@ RUN npm run build
 COPY ./backend $DEVELOPMENT_PATH/backend
 WORKDIR $DEVELOPMENT_PATH/backend
 RUN npm run build
+
+COPY ./docker/docker-entrypoint.dev.sh /docker-entrypoint.dev.sh
+RUN chmod +x /docker-entrypoint.dev.sh
 
 CMD [ "/bin/bash", "-c", "/docker-entrypoint.dev.sh" ]

@@ -10,10 +10,12 @@ services:
         environment:
             - DFM_USE_RAFT=true
             - DFM_RAFT_CONFIG_PATH=/usr/local/app/raft.json
+            - DFM_WEBSOCKET_PORT=3210
+            - DFM_HTTP_PORT=3211
         ports:
-            - 127.0.0.1:4200:4200
-            - 127.0.0.1:3201:3201
-            - 127.0.0.1:3200:3200
+            - 127.0.0.1:4210:4200
+            - 127.0.0.1:3211:3211
+            - 127.0.0.1:3210:3210
             - 127.0.0.1:8051:8051
         env_file:
             - .env
@@ -33,9 +35,12 @@ services:
         environment:
             - DFM_USE_RAFT=true
             - DFM_RAFT_CONFIG_PATH=/usr/local/app/raft.json
+            - DFM_WEBSOCKET_PORT=3220
+            - DFM_HTTP_PORT=3221
         ports:
-            # - 127.0.0.1:4200:4200
-            # - 127.0.0.1:3201:3201
+            - 127.0.0.1:4220:4200
+            - 127.0.0.1:3221:3221
+            - 127.0.0.1:3220:3220
             - 127.0.0.1:8052:8052
         env_file:
             - .env
@@ -55,9 +60,12 @@ services:
         environment:
             - DFM_USE_RAFT=true
             - DFM_RAFT_CONFIG_PATH=/usr/local/app/raft.json
+            - DFM_WEBSOCKET_PORT=3230
+            - DFM_HTTP_PORT=3231
         ports:
-            # - 127.0.0.1:4200:4200
-            # - 127.0.0.1:3201:3201
+            - 127.0.0.1:4230:4200
+            - 127.0.0.1:3231:3231
+            - 127.0.0.1:3230:3230
             - 127.0.0.1:8053:8053
         env_file:
             - .env

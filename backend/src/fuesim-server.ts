@@ -110,6 +110,13 @@ export class FuesimServer {
         return this._raftServer;
     }
 
+    public get raftClient(): raft.client.ZmqRaftSubscriber {
+        if (!this._raftClient) {
+            throw new Error('Raft client not initialized yet');
+        }
+        return this._raftClient;
+    }
+
     public async destroy() {
         this.httpServer.close();
         this.websocketServer.close();
@@ -120,4 +127,3 @@ export class FuesimServer {
         }
     }
 }
-

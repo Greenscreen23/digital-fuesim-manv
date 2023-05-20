@@ -8,10 +8,11 @@ import { ExerciseHttpServer } from './exercise/http-server';
 import { Config } from './config';
 import type { DatabaseService } from './database/services/database-service';
 import type { ExerciseWrapper } from './exercise/exercise-wrapper';
+import node_zmq_raft from 'node-zmq-raft';
 
 export class FuesimServer {
     private readonly _httpServer: ExerciseHttpServer;
-    private readonly _websocketServer: ExerciseWebsocketServer;
+    private _websocketServer?: ExerciseWebsocketServer;
     private _raftServer?: raft.server.ZmqRaft;
     private _raftClient?: raft.client.ZmqRaftSubscriber;
 
@@ -78,10 +79,9 @@ export class FuesimServer {
     constructor(
         private readonly databaseService: DatabaseService,
         raftConfigPath: string,
-        raftPort: number,
+        raftPort: number
     ) {
         const app = express();
-        this._websocketServer = new ExerciseWebsocketServer(app);
         this._httpServer = new ExerciseHttpServer(app, databaseService);
         if (Config.useDb) {
             this.saveHandler.start();
@@ -91,11 +91,29 @@ export class FuesimServer {
         );
         raft.server.builder.build(raftConfig).then((raftServer) => {
             this._raftServer = raftServer;
-            this._raftClient = new raft.client.ZmqRaftSubscriber(undefined, { url: `tcp://localhost:${raftPort}` })
+            this._raftClient = new raft.client.ZmqRaftSubscriber([
+                'tcp://172.16.238.11:8047',
+                'tcp://172.16.238.12:8047',
+                'tcp://172.16.238.13:8047',
+            ]);
+            this._raftClient.on('error', (err) => {
+                console.error(err);
+            });
+            this._raftClient.on('data', (data) => {
+                console.log(JSON.stringify(data));
+            });
+
+            this._websocketServer = new ExerciseWebsocketServer(
+                app,
+                this.raftClient
+            );
         });
     }
 
     public get websocketServer(): ExerciseWebsocketServer {
+        if (!this._websocketServer) {
+            throw new Error('Websocket server not initialized yet');
+        }
         return this._websocketServer;
     }
 

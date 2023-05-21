@@ -21,7 +21,7 @@ services:
         env_file:
             - .env
         volumes:
-            - dfm-data-1:/${DFM_PERSISTENT_DATA_PATH}
+            # - dfm-data-1:/${DFM_PERSISTENT_DATA_PATH}
             - ./raft-1.json:/usr/local/app/raft.json
         networks:
             raft:
@@ -47,7 +47,7 @@ services:
         env_file:
             - .env
         volumes:
-            - dfm-data-2:/${DFM_PERSISTENT_DATA_PATH}
+            # - dfm-data-2:/${DFM_PERSISTENT_DATA_PATH}
             - ./raft-2.json:/usr/local/app/raft.json
         networks:
             raft:
@@ -73,7 +73,7 @@ services:
         env_file:
             - .env
         volumes:
-            - dfm-data-3:/${DFM_PERSISTENT_DATA_PATH}
+            # - dfm-data-3:/${DFM_PERSISTENT_DATA_PATH}
             - ./raft-3.json:/usr/local/app/raft.json
         networks:
             raft:

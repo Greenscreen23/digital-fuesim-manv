@@ -11,11 +11,11 @@ import {
     registerJoinExerciseHandler,
     registerProposeActionHandler,
 } from './websocket-handler';
-import node_zmq_raft from 'node-zmq-raft';
+import raft from 'node-zmq-raft';
 
 export class ExerciseWebsocketServer {
     public readonly exerciseServer: ExerciseServer;
-    public constructor(app: core.Express, private readonly raftClient: node_zmq_raft.client.ZmqRaftSubscriber) {
+    public constructor(app: core.Express, private readonly raftClient: raft.client.ZmqRaftClient) {
         const server = createServer(app);
 
         this.exerciseServer = new Server(server, {

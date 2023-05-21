@@ -8,12 +8,12 @@ import {
 import type { ExerciseServer, ExerciseSocket } from '../../exercise-server';
 import { clientMap } from '../client-map';
 import { secureOn } from './secure-on';
-import node_zmq_raft from 'node-zmq-raft';
+import raft from 'node-zmq-raft';
 import { encode } from 'msgpack-lite';
 
 export const registerProposeActionHandler = (
     io: ExerciseServer,
-    raftClient: node_zmq_raft.client.ZmqRaftSubscriber,
+    raftClient: raft.client.ZmqRaftClient,
     client: ExerciseSocket
 ) => {
     secureOn(
@@ -71,9 +71,7 @@ export const registerProposeActionHandler = (
             }
             // 4. apply & broadcast action (+ save to timeline)
             try {
-                const buf = encode(action) as node_zmq_raft.common.LogEntry.UpdateRequest;
-                buf.requestId = node_zmq_raft.utils.id.genIdent();
-                raftClient.write(buf);
+                raftClient.requestUpdate(raft.utils.id.genIdent(), Buffer.from(encode(action)));
                 exerciseWrapper.applyAction(action, clientWrapper.client.id);
             } catch (error: any) {
                 if (error instanceof ReducerError) {

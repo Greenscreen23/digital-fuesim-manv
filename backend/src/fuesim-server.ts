@@ -8,13 +8,13 @@ import { ExerciseHttpServer } from './exercise/http-server';
 import { Config } from './config';
 import type { DatabaseService } from './database/services/database-service';
 import type { ExerciseWrapper } from './exercise/exercise-wrapper';
-import node_zmq_raft from 'node-zmq-raft';
+import { ExerciseStateMachine } from './exercise/state-machine';
 
 export class FuesimServer {
     private readonly _httpServer: ExerciseHttpServer;
     private _websocketServer?: ExerciseWebsocketServer;
     private _raftServer?: raft.server.ZmqRaft;
-    private _raftClient?: raft.client.ZmqRaftSubscriber;
+    private _raftClient?: raft.client.ZmqRaftClient;
 
     private readonly saveTick = async () => {
         const exercisesToSave: ExerciseWrapper[] = [];
@@ -89,25 +89,24 @@ export class FuesimServer {
         const raftConfig = JSON.parse(
             fs.readFileSync(raftConfigPath).toString()
         );
-        raft.server.builder.build(raftConfig).then((raftServer) => {
-            this._raftServer = raftServer;
-            this._raftClient = new raft.client.ZmqRaftSubscriber([
-                'tcp://172.16.238.11:8047',
-                'tcp://172.16.238.12:8047',
-                'tcp://172.16.238.13:8047',
-            ]);
-            this._raftClient.on('error', (err) => {
-                console.error(err);
-            });
-            this._raftClient.on('data', (data) => {
-                console.log(JSON.stringify(data));
-            });
+        raft.server.builder
+            .build({
+                ...raftConfig,
+                factory: {
+                    state: () => new ExerciseStateMachine(),
+                },
+            })
+            .then((raftServer) => {
+                this._raftServer = raftServer;
+                this._raftClient = new raft.client.ZmqRaftClient(
+                    raftConfig.peers.map((peer: any) => peer.url)
+                );
 
-            this._websocketServer = new ExerciseWebsocketServer(
-                app,
-                this.raftClient
-            );
-        });
+                this._websocketServer = new ExerciseWebsocketServer(
+                    app,
+                    this._raftClient
+                );
+            });
     }
 
     public get websocketServer(): ExerciseWebsocketServer {
@@ -128,7 +127,7 @@ export class FuesimServer {
         return this._raftServer;
     }
 
-    public get raftClient(): raft.client.ZmqRaftSubscriber {
+    public get raftClient(): raft.client.ZmqRaftClient {
         if (!this._raftClient) {
             throw new Error('Raft client not initialized yet');
         }

@@ -2,8 +2,8 @@ import type { Server as HttpServer } from 'node:http';
 import cors from 'cors';
 import type { Express } from 'express';
 import express from 'express';
+import type raft from 'node-zmq-raft';
 import { Config } from '../config';
-import type { DatabaseService } from '../database/services/database-service';
 import {
     deleteExercise,
     getExercise,
@@ -12,13 +12,18 @@ import {
 } from './http-handler/api/exercise';
 import { getHealth } from './http-handler/api/health';
 import { secureHttp } from './http-handler/secure-http';
+import type { ExerciseStateMachine } from './state-machine';
 
 export class ExerciseHttpServer {
     public readonly httpServer: HttpServer;
     /**
      * @param uploadLimit in Megabyte can be set via ENV DFM_UPLOAD_LIMIT
      */
-    constructor(app: Express, databaseService: DatabaseService) {
+    constructor(
+        app: Express,
+        client: raft.client.ZmqRaftClient,
+        stateMachine: ExerciseStateMachine
+    ) {
         // TODO: Temporary allow all
         app.use(cors());
 
@@ -29,17 +34,28 @@ export class ExerciseHttpServer {
         // This is used for the Cypress CI.
         app.get('/api/health', async (_req, res) => secureHttp(getHealth, res));
         app.post('/api/exercise', async (req, res) =>
-            secureHttp(async () => postExercise(databaseService, req.body), res)
+            secureHttp(
+                async () => postExercise(req.body, client, stateMachine),
+                res
+            )
         );
         app.get('/api/exercise/:exerciseId', async (req, res) =>
-            secureHttp(() => getExercise(req.params.exerciseId), res)
+            secureHttp(
+                () => getExercise(req.params.exerciseId, stateMachine),
+                res
+            )
         );
         app.delete('/api/exercise/:exerciseId', async (req, res) =>
-            secureHttp(async () => deleteExercise(req.params.exerciseId), res)
+            secureHttp(
+                async () =>
+                    deleteExercise(req.params.exerciseId, client, stateMachine),
+                res
+            )
         );
         app.get('/api/exercise/:exerciseId/history', async (req, res) =>
             secureHttp(
-                async () => getExerciseHistory(req.params.exerciseId),
+                async () =>
+                    getExerciseHistory(req.params.exerciseId, stateMachine),
                 res
             )
         );

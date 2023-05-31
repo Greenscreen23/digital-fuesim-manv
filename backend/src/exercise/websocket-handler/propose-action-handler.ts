@@ -1,25 +1,25 @@
 import type { ExerciseAction } from 'digital-fuesim-manv-shared';
 import {
-    ReducerError,
-    ExpectedReducerError,
     validateExerciseAction,
     validatePermissions,
 } from 'digital-fuesim-manv-shared';
+import type raft from 'node-zmq-raft';
+import { proposeExerciseActionToStateMachine } from '../raft/send-to-state-machine';
+import type { ExerciseStateMachine } from '../state-machine';
 import type { ExerciseServer, ExerciseSocket } from '../../exercise-server';
 import { clientMap } from '../client-map';
 import { secureOn } from './secure-on';
-import raft from 'node-zmq-raft';
-import { encode } from 'msgpack-lite';
 
 export const registerProposeActionHandler = (
     io: ExerciseServer,
+    client: ExerciseSocket,
     raftClient: raft.client.ZmqRaftClient,
-    client: ExerciseSocket
+    stateMachine: ExerciseStateMachine
 ) => {
     secureOn(
         client,
         'proposeAction',
-        (action: ExerciseAction, callback): void => {
+        async (action: ExerciseAction, callback): Promise<void> => {
             const clientWrapper = clientMap.get(client);
             if (!clientWrapper) {
                 // There is no client. Skip.
@@ -71,26 +71,20 @@ export const registerProposeActionHandler = (
             }
             // 4. apply & broadcast action (+ save to timeline)
             try {
-                raftClient.requestUpdate(raft.utils.id.genIdent(), Buffer.from(encode(action)));
-                exerciseWrapper.applyAction(action, clientWrapper.client.id);
+                await proposeExerciseActionToStateMachine(
+                    raftClient,
+                    exerciseWrapper.trainerId,
+                    clientWrapper.client.id,
+                    action,
+                    stateMachine
+                );
             } catch (error: any) {
-                if (error instanceof ReducerError) {
-                    if (error instanceof ExpectedReducerError) {
-                        callback({
-                            success: false,
-                            message: error.message,
-                            expected: true,
-                        });
-                    } else {
-                        callback({
-                            success: false,
-                            message: error.message,
-                            expected: false,
-                        });
-                    }
-                    return;
-                }
-                throw error;
+                callback({
+                    success: false,
+                    message: error.message ?? 'Ein Fehler ist aufgetreten',
+                    expected: error.expected ?? false,
+                });
+                return;
             }
             // 5. send success response to emitting client
             callback({

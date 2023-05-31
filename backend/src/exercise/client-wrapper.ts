@@ -1,8 +1,9 @@
 import type { ExerciseAction, UUID } from 'digital-fuesim-manv-shared';
 import { Client } from 'digital-fuesim-manv-shared';
+import type raft from 'node-zmq-raft';
 import type { ExerciseSocket } from '../exercise-server';
-import { exerciseMap } from './exercise-map';
 import type { ExerciseWrapper } from './exercise-wrapper';
+import type { ExerciseStateMachine } from './state-machine';
 
 export class ClientWrapper {
     public constructor(private readonly socket: ExerciseSocket) {}
@@ -16,11 +17,13 @@ export class ClientWrapper {
      * @param clientName The public name of the client.
      * @returns The joined client's id, or undefined when the exercise doesn't exists.
      */
-    public joinExercise(
+    public async joinExercise(
         exerciseId: string,
-        clientName: string
-    ): UUID | undefined {
-        const exercise = exerciseMap.get(exerciseId);
+        clientName: string,
+        raftClient: raft.client.ZmqRaftClient,
+        stateMachine: ExerciseStateMachine
+    ): Promise<UUID | undefined> {
+        const exercise = stateMachine.exerciseMap.get(exerciseId);
         if (!exercise) {
             return undefined;
         }
@@ -30,19 +33,22 @@ export class ClientWrapper {
         // was fetched with this exact id from the exercise map.
         const role = this.chosenExercise.getRoleFromUsedId(exerciseId);
         this.relatedExerciseClient = Client.create(clientName, role, undefined);
-        this.chosenExercise.addClient(this);
+        await this.chosenExercise.addClient(this, raftClient, stateMachine);
         return this.relatedExerciseClient.id;
     }
 
     /**
      * Note that this method simply returns when the client did not join an exercise.
      */
-    public leaveExercise() {
+    public leaveExercise(
+        raftClient: raft.client.ZmqRaftClient,
+        stateMachine: ExerciseStateMachine
+    ) {
         if (this.chosenExercise === undefined) {
             // The client has not joined an exercise. Do nothing.
             return;
         }
-        this.chosenExercise.removeClient(this);
+        this.chosenExercise.removeClient(this, raftClient, stateMachine);
     }
 
     public get exercise(): ExerciseWrapper | undefined {

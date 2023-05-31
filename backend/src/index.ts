@@ -2,11 +2,11 @@ import * as util from 'node:util';
 import { ReducerError } from 'digital-fuesim-manv-shared';
 import { ValidationErrorWrapper } from './utils/validation-error-wrapper';
 import { RestoreError } from './utils/restore-error';
-import { ExerciseWrapper } from './exercise/exercise-wrapper';
 import { Config } from './config';
 import { createNewDataSource } from './database/data-source';
 import { DatabaseService } from './database/services/database-service';
 import { FuesimServer } from './fuesim-server';
+import { ExerciseWrapper } from './exercise/exercise-wrapper';
 
 async function main() {
     Config.initialize();
@@ -26,11 +26,12 @@ async function main() {
         );
     }
     const databaseService = new DatabaseService(dataSource);
+    let exercises: ExerciseWrapper[] = [];
     if (Config.useDb) {
         try {
             console.log('Loading exercises from database…');
             const startTime = performance.now();
-            const exercises = await ExerciseWrapper.restoreAllExercises(
+            exercises = await ExerciseWrapper.restoreAllExercises(
                 databaseService
             );
             const endTime = performance.now();
@@ -63,7 +64,7 @@ async function main() {
         }
     }
     // eslint-disable-next-line no-new
-    new FuesimServer(databaseService, Config.raftConfigPath, Config.raftPort);
+    new FuesimServer(databaseService, Config.raftConfigPath, exercises);
 }
 
 main();

@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 import type * as core from 'express-serve-static-core';
 import { Server } from 'socket.io';
 import { socketIoTransports } from 'digital-fuesim-manv-shared';
+import type raft from 'node-zmq-raft';
 import { Config } from '../config';
 import type { ExerciseSocket, ExerciseServer } from '../exercise-server';
 import { clientMap } from './client-map';
@@ -11,11 +12,15 @@ import {
     registerJoinExerciseHandler,
     registerProposeActionHandler,
 } from './websocket-handler';
-import raft from 'node-zmq-raft';
+import type { ExerciseStateMachine } from './state-machine';
 
 export class ExerciseWebsocketServer {
     public readonly exerciseServer: ExerciseServer;
-    public constructor(app: core.Express, private readonly raftClient: raft.client.ZmqRaftClient) {
+    public constructor(
+        app: core.Express,
+        private readonly raftClient: raft.client.ZmqRaftClient,
+        private readonly stateMachine: ExerciseStateMachine
+    ) {
         const server = createServer(app);
 
         this.exerciseServer = new Server(server, {
@@ -39,12 +44,24 @@ export class ExerciseWebsocketServer {
 
         // register handlers
         registerGetStateHandler(this.exerciseServer, client);
-        registerProposeActionHandler(this.exerciseServer, this.raftClient, client);
-        registerJoinExerciseHandler(this.exerciseServer, client);
+        registerProposeActionHandler(
+            this.exerciseServer,
+            client,
+            this.raftClient,
+            this.stateMachine
+        );
+        registerJoinExerciseHandler(
+            this.exerciseServer,
+            client,
+            this.raftClient,
+            this.stateMachine
+        );
 
         // Register disconnect handler
         client.on('disconnect', () => {
-            clientMap.get(client)!.leaveExercise();
+            clientMap
+                .get(client)!
+                .leaveExercise(this.raftClient, this.stateMachine);
             clientMap.delete(client);
         });
     }

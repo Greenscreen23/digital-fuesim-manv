@@ -3,8 +3,8 @@ services:
     dfm1:
         image: digital-fuesim-manv-dfm-raft
         build:
-           context: .
-           dockerfile: docker/Dockerfile.dev
+            context: .
+            dockerfile: docker/Dockerfile.dev
         restart: unless-stopped
         container_name: digital-fuesim-manv-1
         environment:
@@ -92,11 +92,11 @@ services:
             - POSTGRES_DB=${DFM_DB_NAME}
 
 networks:
-  raft:
-    ipam:
-        driver: default
-        config:
-            - subnet: 172.16.238.0/24
+    raft:
+        ipam:
+            driver: default
+            config:
+                - subnet: 172.16.238.0/24
 
 volumes:
     # database is in this volume

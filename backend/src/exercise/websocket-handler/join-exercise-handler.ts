@@ -1,4 +1,6 @@
 import type { UUID } from 'digital-fuesim-manv-shared';
+import type { ExerciseStateMachine } from 'exercise/state-machine';
+import type raft from 'node-zmq-raft';
 import { ValidationErrorWrapper } from '../../utils/validation-error-wrapper';
 import type { ExerciseServer, ExerciseSocket } from '../../exercise-server';
 import { clientMap } from '../client-map';
@@ -6,12 +8,14 @@ import { secureOn } from './secure-on';
 
 export const registerJoinExerciseHandler = (
     io: ExerciseServer,
-    client: ExerciseSocket
+    client: ExerciseSocket,
+    raftClient: raft.client.ZmqRaftClient,
+    stateMachine: ExerciseStateMachine
 ) => {
     secureOn(
         client,
         'joinExercise',
-        (exerciseId: string, clientName: string, callback): void => {
+        async (exerciseId: string, clientName: string, callback) => {
             // When this listener is registered the socket is in the map.
             const clientWrapper = clientMap.get(client)!;
             if (clientWrapper.exercise) {
@@ -24,9 +28,14 @@ export const registerJoinExerciseHandler = (
             }
             let clientId: UUID | undefined;
             try {
-                clientId = clientMap
+                clientId = await clientMap
                     .get(client)
-                    ?.joinExercise(exerciseId, clientName);
+                    ?.joinExercise(
+                        exerciseId,
+                        clientName,
+                        raftClient,
+                        stateMachine
+                    );
             } catch (e: unknown) {
                 if (e instanceof ValidationErrorWrapper) {
                     callback({

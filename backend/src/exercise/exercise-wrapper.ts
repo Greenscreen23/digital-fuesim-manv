@@ -17,6 +17,7 @@ import {
 } from 'digital-fuesim-manv-shared';
 import type { EntityManager } from 'typeorm';
 import { LessThan } from 'typeorm';
+import type raft from 'node-zmq-raft';
 import { Config } from '../config';
 import type { ActionWrapperEntity } from '../database/entities/action-wrapper.entity';
 import { ExerciseWrapperEntity } from '../database/entities/exercise-wrapper.entity';
@@ -26,13 +27,12 @@ import type { DatabaseService } from '../database/services/database-service';
 import { pushAll, removeAll } from '../utils/array';
 import { IncrementIdGenerator } from '../utils/increment-id-generator';
 import { RestoreError } from '../utils/restore-error';
-import { UserReadableIdGenerator } from '../utils/user-readable-id-generator';
 import { ValidationErrorWrapper } from '../utils/validation-error-wrapper';
 import { ActionWrapper } from './action-wrapper';
 import type { ClientWrapper } from './client-wrapper';
-import { exerciseMap } from './exercise-map';
 import { patientTick } from './patient-ticking';
-import { PeriodicEventHandler } from './periodic-events/periodic-event-handler';
+import type { ExerciseStateMachine } from './state-machine';
+import { proposeExerciseActionToStateMachine } from './raft/send-to-state-machine';
 
 export class ExerciseWrapper extends NormalType<
     ExerciseWrapper,
@@ -206,11 +206,15 @@ export class ExerciseWrapper extends NormalType<
      * This function gets called once every second in case the exercise is running.
      * All periodic actions of the exercise (e.g. status changes for patients) should happen here.
      */
-    private readonly tick = async () => {
+    public readonly tick = async (
+        tickInterval: number,
+        client: raft.client.ZmqRaftClient,
+        stateMachine: ExerciseStateMachine
+    ) => {
         try {
             const patientUpdates = patientTick(
                 this.getStateSnapshot(),
-                this.tickInterval
+                tickInterval
             );
             const updateAction: ExerciseAction = {
                 type: '[Exercise] Tick',
@@ -221,35 +225,34 @@ export class ExerciseWrapper extends NormalType<
                 // TODO: Refactor this: do this in the reducer instead of sending it in the action
                 refreshTreatments:
                     this.tickCounter % this.refreshTreatmentInterval === 0,
-                tickInterval: this.tickInterval,
+                tickInterval,
             };
-            this.applyAction(updateAction, this.emitterId);
-            this.tickCounter++;
-            this.markAsModified();
+            await proposeExerciseActionToStateMachine(
+                client,
+                this.trainerId,
+                this.emitterId,
+                updateAction,
+                stateMachine
+            );
         } catch (e: unknown) {
             // Something went wrong in tick, probably some corrupted simulation state.
             console.error(e);
             try {
-                this.applyAction(
+                await proposeExerciseActionToStateMachine(
+                    client,
+                    this.trainerId,
+                    null,
                     {
                         type: '[Exercise] Pause',
                     },
-                    this.emitterId
+                    stateMachine
                 );
-                this.markAsModified();
             } catch {
                 // Alright, this is enough. Something is fundamentally broken.
                 this.pause();
             }
         }
     };
-
-    // Call the tick every 1000 ms
-    private readonly tickInterval = 1000;
-    private readonly tickHandler = new PeriodicEventHandler(
-        this.tick,
-        this.tickInterval
-    );
 
     private readonly clients = new Set<ClientWrapper>();
 
@@ -457,11 +460,6 @@ export class ExerciseWrapper extends NormalType<
                 // The actions have already been saved in the database -> do not keep them
                 exercises.map(async (exercise) => exercise.restore(false))
             );
-            exercises.forEach((exercise) => {
-                exerciseMap.set(exercise.participantId, exercise);
-                exerciseMap.set(exercise.trainerId, exercise);
-            });
-            UserReadableIdGenerator.lock([...exerciseMap.keys()]);
             return exercises;
         });
     }
@@ -494,7 +492,11 @@ export class ExerciseWrapper extends NormalType<
         this.clients.forEach((client) => client.emitAction(action));
     }
 
-    public addClient(clientWrapper: ClientWrapper) {
+    public async addClient(
+        clientWrapper: ClientWrapper,
+        raftClient: raft.client.ZmqRaftClient,
+        stateMachine: ExerciseStateMachine
+    ) {
         if (clientWrapper.client === undefined) {
             return;
         }
@@ -503,12 +505,26 @@ export class ExerciseWrapper extends NormalType<
             type: '[Client] Add client',
             client,
         };
-        this.applyAction(addClientAction, client.id);
-        // Only after all this add the client in order to not send the action adding itself to it
-        this.clients.add(clientWrapper);
+        try {
+            await proposeExerciseActionToStateMachine(
+                raftClient,
+                this.trainerId,
+                client.id,
+                addClientAction,
+                stateMachine
+            );
+            // Only after all this add the client in order to not send the action adding itself to it
+            this.clients.add(clientWrapper);
+        } catch (error: unknown) {
+            console.error(error);
+        }
     }
 
-    public removeClient(clientWrapper: ClientWrapper) {
+    public async removeClient(
+        clientWrapper: ClientWrapper,
+        raftClient: raft.client.ZmqRaftClient,
+        stateMachine: ExerciseStateMachine
+    ) {
         if (!this.clients.has(clientWrapper)) {
             // clientWrapper not part of this exercise
             return;
@@ -518,30 +534,49 @@ export class ExerciseWrapper extends NormalType<
             type: '[Client] Remove client',
             clientId: client.id,
         };
-        this.applyAction(removeClientAction, client.id, () => {
+        try {
+            const clientId = client.id;
             clientWrapper.disconnect();
             this.clients.delete(clientWrapper);
-        });
+            await proposeExerciseActionToStateMachine(
+                raftClient,
+                this.trainerId,
+                clientId,
+                removeClientAction,
+                stateMachine
+            );
+        } catch (error: unknown) {
+            console.error(error);
+        }
         if (
             this.clients.size === 0 &&
             this.currentState.currentStatus === 'running'
         ) {
             // Pause the exercise
-            this.applyAction(
-                {
-                    type: '[Exercise] Pause',
-                },
-                null
-            );
+            try {
+                await proposeExerciseActionToStateMachine(
+                    raftClient,
+                    this.trainerId,
+                    null,
+                    {
+                        type: '[Exercise] Pause',
+                    },
+                    stateMachine
+                );
+            } catch (error: unknown) {
+                console.error(error);
+            }
         }
     }
 
+    public started = false;
+
     public start() {
-        this.tickHandler.start();
+        this.started = true;
     }
 
     public pause() {
-        this.tickHandler.pause();
+        this.started = false;
     }
 
     /**
@@ -603,8 +638,6 @@ export class ExerciseWrapper extends NormalType<
         this.clients.forEach((client) => client.disconnect());
         // Pause the exercise to stop the tick
         this.pause();
-        exerciseMap.delete(this.participantId);
-        exerciseMap.delete(this.trainerId);
         if (this.id !== undefined && Config.useDb) {
             await this.databaseService.transaction(
                 this.databaseService.exerciseWrapperService.getRemove(this.id)

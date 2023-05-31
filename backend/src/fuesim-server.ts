@@ -2,7 +2,6 @@ import fs from 'node:fs';
 import express from 'express';
 import raft from 'node-zmq-raft';
 import { PeriodicEventHandler } from './exercise/periodic-events/periodic-event-handler';
-import { exerciseMap } from './exercise/exercise-map';
 import { ExerciseWebsocketServer } from './exercise/websocket';
 import { ExerciseHttpServer } from './exercise/http-server';
 import { Config } from './config';
@@ -11,14 +10,15 @@ import type { ExerciseWrapper } from './exercise/exercise-wrapper';
 import { ExerciseStateMachine } from './exercise/state-machine';
 
 export class FuesimServer {
-    private readonly _httpServer: ExerciseHttpServer;
+    private _httpServer?: ExerciseHttpServer;
     private _websocketServer?: ExerciseWebsocketServer;
     private _raftServer?: raft.server.ZmqRaft;
     private _raftClient?: raft.client.ZmqRaftClient;
+    private _stateMachine?: ExerciseStateMachine;
 
     private readonly saveTick = async () => {
         const exercisesToSave: ExerciseWrapper[] = [];
-        exerciseMap.forEach((exercise, key) => {
+        this.stateMachine.exerciseMap.forEach((exercise, key) => {
             // Only use exercises referenced by their trainer id (8 characters) to not choose the same exercise twice
             if (key.length !== 8) {
                 return;
@@ -76,13 +76,23 @@ export class FuesimServer {
         this.saveTickInterval
     );
 
+    private readonly tickInterval = 1000;
+
+    private readonly tickHandler = new PeriodicEventHandler(async () => {
+        if (this.raftServer.isLeader) {
+            this.stateMachine.tickAllExercises(
+                this.tickInterval,
+                this.raftClient
+            );
+        }
+    }, this.tickInterval);
+
     constructor(
         private readonly databaseService: DatabaseService,
         raftConfigPath: string,
-        raftPort: number
+        exercises: ExerciseWrapper[]
     ) {
         const app = express();
-        this._httpServer = new ExerciseHttpServer(app, databaseService);
         if (Config.useDb) {
             this.saveHandler.start();
         }
@@ -93,7 +103,11 @@ export class FuesimServer {
             .build({
                 ...raftConfig,
                 factory: {
-                    state: () => new ExerciseStateMachine(),
+                    state: () =>
+                        (this._stateMachine = new ExerciseStateMachine(
+                            databaseService,
+                            exercises
+                        )),
                 },
             })
             .then((raftServer) => {
@@ -101,11 +115,19 @@ export class FuesimServer {
                 this._raftClient = new raft.client.ZmqRaftClient(
                     raftConfig.peers.map((peer: any) => peer.url)
                 );
+                this._httpServer = new ExerciseHttpServer(
+                    app,
+                    this.raftClient,
+                    this.stateMachine
+                );
 
                 this._websocketServer = new ExerciseWebsocketServer(
                     app,
-                    this._raftClient
+                    this.raftClient,
+                    this.stateMachine
                 );
+
+                this.tickHandler.start();
             });
     }
 
@@ -117,6 +139,9 @@ export class FuesimServer {
     }
 
     public get httpServer(): ExerciseHttpServer {
+        if (!this._httpServer) {
+            throw new Error('HTTP server not initialized yet');
+        }
         return this._httpServer;
     }
 
@@ -125,6 +150,13 @@ export class FuesimServer {
             throw new Error('Raft server not initialized yet');
         }
         return this._raftServer;
+    }
+
+    public get stateMachine(): ExerciseStateMachine {
+        if (!this._stateMachine) {
+            throw new Error('State machine not initialized yet');
+        }
+        return this._stateMachine;
     }
 
     public get raftClient(): raft.client.ZmqRaftClient {

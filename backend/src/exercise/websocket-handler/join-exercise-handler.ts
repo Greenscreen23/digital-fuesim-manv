@@ -15,7 +15,12 @@ export const registerJoinExerciseHandler = (
     secureOn(
         client,
         'joinExercise',
-        async (exerciseId: string, clientName: string, callback) => {
+        async (
+            exerciseId: string,
+            clientName: string,
+            clientId: UUID | undefined,
+            callback
+        ) => {
             // When this listener is registered the socket is in the map.
             const clientWrapper = clientMap.get(client)!;
             if (clientWrapper.exercise) {
@@ -26,13 +31,14 @@ export const registerJoinExerciseHandler = (
                 });
                 return;
             }
-            let clientId: UUID | undefined;
+            let newClientId: UUID | undefined;
             try {
-                clientId = await clientMap
+                newClientId = await clientMap
                     .get(client)
                     ?.joinExercise(
                         exerciseId,
                         clientName,
+                        clientId,
                         raftClient,
                         stateMachine
                     );
@@ -47,7 +53,7 @@ export const registerJoinExerciseHandler = (
                 }
                 throw e;
             }
-            if (!clientId) {
+            if (!newClientId) {
                 callback({
                     success: false,
                     message: 'The exercise does not exist',
@@ -57,7 +63,7 @@ export const registerJoinExerciseHandler = (
             }
             callback({
                 success: true,
-                payload: clientId,
+                payload: newClientId,
             });
         }
     );

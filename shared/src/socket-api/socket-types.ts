@@ -11,6 +11,7 @@ export interface ClientToServerEvents {
     joinExercise: (
         exerciseId: string,
         clientName: string,
+        clientId: UUID | undefined,
         callback: (response: SocketResponse<UUID>) => void
     ) => void;
     proposeAction: (

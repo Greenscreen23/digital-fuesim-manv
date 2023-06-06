@@ -20,6 +20,7 @@ export class ClientWrapper {
     public async joinExercise(
         exerciseId: string,
         clientName: string,
+        clientId: UUID | undefined,
         raftClient: raft.client.ZmqRaftClient,
         stateMachine: ExerciseStateMachine
     ): Promise<UUID | undefined> {
@@ -28,6 +29,14 @@ export class ClientWrapper {
             return undefined;
         }
         this.chosenExercise = exercise;
+
+        const clients = this.chosenExercise.getStateSnapshot().clients;
+        if (clientId && clients[clientId]) {
+            this.relatedExerciseClient = clients[clientId];
+            this.chosenExercise.addExistingClient(this);
+            return clientId;
+        }
+
         // Although getRoleFromUsedId may throw an error, this should never happen here
         // as the provided id is guaranteed to be one of the ids of the exercise as the exercise
         // was fetched with this exact id from the exercise map.

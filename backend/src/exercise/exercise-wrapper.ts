@@ -514,10 +514,14 @@ export class ExerciseWrapper extends NormalType<
                 stateMachine
             );
             // Only after all this add the client in order to not send the action adding itself to it
-            this.clients.add(clientWrapper);
+            this.addExistingClient(clientWrapper);
         } catch (error: unknown) {
             console.error(error);
         }
+    }
+
+    public addExistingClient(clientWrapper: ClientWrapper) {
+        this.clients.add(clientWrapper);
     }
 
     public async removeClient(

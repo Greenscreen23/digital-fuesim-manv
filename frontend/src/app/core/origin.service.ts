@@ -13,9 +13,11 @@ interface Origin {
 export class OriginService {
     // Currently hardcoded for demonstration purposes.
     private readonly origins: { [key: UUID]: Origin } = {
-        [uuid()]: { ws: 'ws://localhost:3210', http: 'http://localhost:3211' },
-        [uuid()]: { ws: 'ws://localhost:3220', http: 'http://localhost:3221' },
-        [uuid()]: { ws: 'ws://localhost:3230', http: 'http://localhost:3231' },
+        [uuid()]: { ws: 'ws://localhost:3201', http: 'http://localhost:3301' },
+        [uuid()]: { ws: 'ws://localhost:3202', http: 'http://localhost:3302' },
+        [uuid()]: { ws: 'ws://localhost:3203', http: 'http://localhost:3303' },
+        [uuid()]: { ws: 'ws://localhost:3204', http: 'http://localhost:3304' },
+        [uuid()]: { ws: 'ws://localhost:3205', http: 'http://localhost:3305' },
     };
 
     private currentOrigins: { [key: UUID]: Origin } = {};

@@ -1,10 +1,12 @@
 {
-    "id": "raft2",
+    "id": "raft5",
     "secret": "",
     "peers": [
-        { "id": "raft1", "url": "tcp://172.16.238.11:8047" },
-        { "id": "raft2", "url": "tcp://172.16.238.12:8047" },
-        { "id": "raft3", "url": "tcp://172.16.238.13:8047" }
+        { "id": "raft1", "url": "tcp://172.16.238.101:8047" },
+        { "id": "raft2", "url": "tcp://172.16.238.2:8047" },
+        { "id": "raft3", "url": "tcp://172.16.238.3:8047" },
+        { "id": "raft4", "url": "tcp://172.16.238.4:8047" },
+        { "id": "raft5", "url": "tcp://172.16.238.5:8047" }
     ],
     "data": {
         "path": "raft",
@@ -13,13 +15,10 @@
         "snapshot": "snap",
         "state": "state.pers"
     },
-    "broadcast": {
-        "url": "tcp://127.0.0.1:8048"
-    },
     "webmonitor": {
         "enable": true,
         "host": "localhost",
-        "port": 8052,
+        "port": 8505,
         "proto": null,
         "bind": {
             "proto": "http",

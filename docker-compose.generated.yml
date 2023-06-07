@@ -1,0 +1,106 @@
+version: '3'
+networks:
+    raft:
+        ipam:
+            driver: default
+            config:
+                - subnet: 172.16.238.0/24
+services:
+    dfm1:
+        image: digital-fuesim-manv-dfm-raft
+        build:
+            context: .
+            dockerfile: docker/Dockerfile.dev
+        restart: unless-stopped
+        container_name: digital-fuesim-manv-1
+        environment:
+            - DFM_USE_RAFT=true
+            - DFM_RAFT_CONFIG_PATH=/usr/local/app/raft.json
+        ports:
+            - 127.0.0.1:4201:4200
+            - 127.0.0.1:3301:3201
+            - 127.0.0.1:3201:3200
+            - 127.0.0.1:8501:8501
+        env_file:
+            - .env
+        volumes:
+            - ./config/raft-1.json:/usr/local/app/raft.json
+        networks:
+            raft:
+                ipv4_address: 172.16.238.101
+    dfm2:
+        image: digital-fuesim-manv-dfm-raft
+        restart: unless-stopped
+        container_name: digital-fuesim-manv-2
+        environment:
+            - DFM_USE_RAFT=true
+            - DFM_RAFT_CONFIG_PATH=/usr/local/app/raft.json
+        ports:
+            - 127.0.0.1:4202:4200
+            - 127.0.0.1:3302:3201
+            - 127.0.0.1:3202:3200
+            - 127.0.0.1:8502:8502
+        env_file:
+            - .env
+        volumes:
+            - ./config/raft-2.json:/usr/local/app/raft.json
+        networks:
+            raft:
+                ipv4_address: 172.16.238.2
+    dfm3:
+        image: digital-fuesim-manv-dfm-raft
+        restart: unless-stopped
+        container_name: digital-fuesim-manv-3
+        environment:
+            - DFM_USE_RAFT=true
+            - DFM_RAFT_CONFIG_PATH=/usr/local/app/raft.json
+        ports:
+            - 127.0.0.1:4203:4200
+            - 127.0.0.1:3303:3201
+            - 127.0.0.1:3203:3200
+            - 127.0.0.1:8503:8503
+        env_file:
+            - .env
+        volumes:
+            - ./config/raft-3.json:/usr/local/app/raft.json
+        networks:
+            raft:
+                ipv4_address: 172.16.238.3
+    dfm4:
+        image: digital-fuesim-manv-dfm-raft
+        restart: unless-stopped
+        container_name: digital-fuesim-manv-4
+        environment:
+            - DFM_USE_RAFT=true
+            - DFM_RAFT_CONFIG_PATH=/usr/local/app/raft.json
+        ports:
+            - 127.0.0.1:4204:4200
+            - 127.0.0.1:3304:3201
+            - 127.0.0.1:3204:3200
+            - 127.0.0.1:8504:8504
+        env_file:
+            - .env
+        volumes:
+            - ./config/raft-4.json:/usr/local/app/raft.json
+        networks:
+            raft:
+                ipv4_address: 172.16.238.4
+    dfm5:
+        image: digital-fuesim-manv-dfm-raft
+        restart: unless-stopped
+        container_name: digital-fuesim-manv-5
+        environment:
+            - DFM_USE_RAFT=true
+            - DFM_RAFT_CONFIG_PATH=/usr/local/app/raft.json
+        ports:
+            - 127.0.0.1:4205:4200
+            - 127.0.0.1:3305:3201
+            - 127.0.0.1:3205:3200
+            - 127.0.0.1:8505:8505
+        env_file:
+            - .env
+        volumes:
+            - ./config/raft-5.json:/usr/local/app/raft.json
+        networks:
+            raft:
+                ipv4_address: 172.16.238.5

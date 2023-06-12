@@ -1,4 +1,5 @@
 import type { UUID } from 'digital-fuesim-manv-shared';
+import type { ApplyExerciseAction } from 'exercise/backend-websocket';
 import { ValidationErrorWrapper } from '../../utils/validation-error-wrapper';
 import type { ExerciseServer, ExerciseSocket } from '../../exercise-server';
 import { clientMap } from '../client-map';
@@ -6,12 +7,18 @@ import { secureOn } from './secure-on';
 
 export const registerJoinExerciseHandler = (
     io: ExerciseServer,
-    client: ExerciseSocket
+    client: ExerciseSocket,
+    onAddClient: (action: ApplyExerciseAction, exerciseId: string) => void
 ) => {
     secureOn(
         client,
         'joinExercise',
-        (exerciseId: string, clientName: string, callback): void => {
+        (
+            exerciseId: string,
+            clientName: string,
+            clientId: UUID | undefined,
+            callback
+        ) => {
             // When this listener is registered the socket is in the map.
             const clientWrapper = clientMap.get(client)!;
             if (clientWrapper.exercise) {
@@ -22,11 +29,11 @@ export const registerJoinExerciseHandler = (
                 });
                 return;
             }
-            let clientId: UUID | undefined;
+            let newClientId: UUID | undefined;
             try {
-                clientId = clientMap
+                newClientId = clientMap
                     .get(client)
-                    ?.joinExercise(exerciseId, clientName);
+                    ?.joinExercise(exerciseId, clientName, clientId);
             } catch (e: unknown) {
                 if (e instanceof ValidationErrorWrapper) {
                     callback({
@@ -38,7 +45,7 @@ export const registerJoinExerciseHandler = (
                 }
                 throw e;
             }
-            if (!clientId) {
+            if (!newClientId) {
                 callback({
                     success: false,
                     message: 'The exercise does not exist',
@@ -46,9 +53,20 @@ export const registerJoinExerciseHandler = (
                 });
                 return;
             }
+            onAddClient(
+                {
+                    type: '[Backend] Apply Exercise Action',
+                    action: {
+                        type: '[Client] Add client',
+                        client: clientWrapper.client!,
+                    },
+                    emitterId: clientWrapper.client!.id,
+                },
+                exerciseId
+            );
             callback({
                 success: true,
-                payload: clientId,
+                payload: newClientId,
             });
         }
     );

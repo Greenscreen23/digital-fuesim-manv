@@ -11,8 +11,8 @@ import { lastValueFrom } from 'rxjs';
 import type { AppState } from '../state/app.state';
 import { selectExerciseId } from '../state/application/selectors/application.selectors';
 import { selectStateSnapshot } from '../state/get-state-snapshot';
-import { httpOrigin } from './api-origins';
 import { MessageService } from './messages/message.service';
+import { OriginService } from './origin.service';
 
 @Injectable({
     providedIn: 'root',
@@ -21,19 +21,33 @@ export class ApiService {
     constructor(
         private readonly store: Store<AppState>,
         private readonly messageService: MessageService,
-        private readonly httpClient: HttpClient
+        private readonly httpClient: HttpClient,
+        private readonly originService: OriginService
     ) {}
+
+    public async checkHealth() {
+        return lastValueFrom(
+            this.httpClient.get<null>(
+                `${this.originService.httpOrigin}/api/health`
+            )
+        )
+            .then(() => true)
+            .catch(() => false);
+    }
 
     public async createExercise() {
         return lastValueFrom(
-            this.httpClient.post<ExerciseIds>(`${httpOrigin}/api/exercise`, {})
+            this.httpClient.post<ExerciseIds>(
+                `${this.originService.httpOrigin}/api/exercise`,
+                {}
+            )
         );
     }
 
     public async importExercise(exportedState: StateExport) {
         return lastValueFrom(
             this.httpClient.post<ExerciseIds>(
-                `${httpOrigin}/api/exercise`,
+                `${this.originService.httpOrigin}/api/exercise`,
                 exportedState
             )
         );
@@ -43,7 +57,7 @@ export class ApiService {
         const exerciseId = selectStateSnapshot(selectExerciseId, this.store);
         return lastValueFrom(
             this.httpClient.get<ExerciseTimeline>(
-                `${httpOrigin}/api/exercise/${exerciseId}/history`
+                `${this.originService.httpOrigin}/api/exercise/${exerciseId}/history`
             )
         ).then((value) => freeze(value, true));
     }
@@ -51,7 +65,7 @@ export class ApiService {
     public async deleteExercise(trainerId: string) {
         return lastValueFrom(
             this.httpClient.delete<undefined>(
-                `${httpOrigin}/api/exercise/${trainerId}`,
+                `${this.originService.httpOrigin}/api/exercise/${trainerId}`,
                 {}
             )
         );
@@ -64,7 +78,7 @@ export class ApiService {
     public async exerciseExists(exerciseId: string) {
         return lastValueFrom(
             this.httpClient.get<null>(
-                `${httpOrigin}/api/exercise/${exerciseId}`
+                `${this.originService.httpOrigin}/api/exercise/${exerciseId}`
             )
         )
             .then(() => true)

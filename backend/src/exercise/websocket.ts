@@ -11,10 +11,14 @@ import {
     registerJoinExerciseHandler,
     registerProposeActionHandler,
 } from './websocket-handler';
+import type { BackendWebsocketServer } from './backend-websocket';
 
 export class ExerciseWebsocketServer {
     public readonly exerciseServer: ExerciseServer;
-    public constructor(app: core.Express) {
+    public constructor(
+        app: core.Express,
+        private readonly backendWebsocketServer: BackendWebsocketServer
+    ) {
         const server = createServer(app);
 
         this.exerciseServer = new Server(server, {
@@ -38,12 +42,33 @@ export class ExerciseWebsocketServer {
 
         // register handlers
         registerGetStateHandler(this.exerciseServer, client);
-        registerProposeActionHandler(this.exerciseServer, client);
-        registerJoinExerciseHandler(this.exerciseServer, client);
+        registerProposeActionHandler(
+            this.exerciseServer,
+            client,
+            (action, exerciseId) =>
+                this.backendWebsocketServer.publishAction(action, exerciseId)
+        );
+        registerJoinExerciseHandler(
+            this.exerciseServer,
+            client,
+            (action, exerciseId) =>
+                this.backendWebsocketServer.publishAction(action, exerciseId)
+        );
 
         // Register disconnect handler
         client.on('disconnect', () => {
             clientMap.get(client)!.leaveExercise();
+            this.backendWebsocketServer.publishAction(
+                {
+                    type: '[Backend] Apply Exercise Action',
+                    action: {
+                        type: '[Client] Remove client',
+                        clientId: clientMap.get(client)!.client!.id,
+                    },
+                    emitterId: clientMap.get(client)!.client!.id,
+                },
+                clientMap.get(client)!.exercise!.id!
+            );
             clientMap.delete(client);
         });
     }

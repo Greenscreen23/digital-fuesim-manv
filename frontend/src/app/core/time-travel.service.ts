@@ -15,9 +15,9 @@ import {
 } from '../state/application/selectors/application.selectors';
 import { selectCurrentTime } from '../state/application/selectors/exercise.selectors';
 import { selectStateSnapshot } from '../state/get-state-snapshot';
-import { httpOrigin } from './api-origins';
 import { MessageService } from './messages/message.service';
 import { TimeJumpHelper } from './time-jump-helper';
+import { OriginService } from './origin.service';
 
 /**
  * This service deals with the timeTravel functionality.
@@ -37,7 +37,8 @@ export class TimeTravelService {
     constructor(
         private readonly store: Store<AppState>,
         private readonly httpClient: HttpClient,
-        private readonly messageService: MessageService
+        private readonly messageService: MessageService,
+        private readonly originService: OriginService
     ) {}
 
     /**
@@ -48,7 +49,7 @@ export class TimeTravelService {
         const exerciseId = selectStateSnapshot(selectExerciseId, this.store);
         const exerciseTimeLine = await lastValueFrom(
             this.httpClient.get<ExerciseTimeline>(
-                `${httpOrigin}/api/exercise/${exerciseId}/history`
+                `${this.originService.httpOrigin}/api/exercise/${exerciseId}/history`
             )
         ).catch((error) => {
             this.stopTimeTravel();

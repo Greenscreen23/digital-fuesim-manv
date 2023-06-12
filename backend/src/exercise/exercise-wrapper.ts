@@ -32,7 +32,6 @@ import { ActionWrapper } from './action-wrapper';
 import type { ClientWrapper } from './client-wrapper';
 import { exerciseMap } from './exercise-map';
 import { patientTick } from './patient-ticking';
-import { PeriodicEventHandler } from './periodic-events/periodic-event-handler';
 
 export class ExerciseWrapper extends NormalType<
     ExerciseWrapper,
@@ -206,11 +205,12 @@ export class ExerciseWrapper extends NormalType<
      * This function gets called once every second in case the exercise is running.
      * All periodic actions of the exercise (e.g. status changes for patients) should happen here.
      */
-    private readonly tick = async () => {
+    public readonly tick = async (tickInterval: number) => {
+        if (!this.started) return;
         try {
             const patientUpdates = patientTick(
                 this.getStateSnapshot(),
-                this.tickInterval
+                tickInterval
             );
             const updateAction: ExerciseAction = {
                 type: '[Exercise] Tick',
@@ -221,7 +221,7 @@ export class ExerciseWrapper extends NormalType<
                 // TODO: Refactor this: do this in the reducer instead of sending it in the action
                 refreshTreatments:
                     this.tickCounter % this.refreshTreatmentInterval === 0,
-                tickInterval: this.tickInterval,
+                tickInterval,
             };
             this.applyAction(updateAction, this.emitterId);
             this.tickCounter++;
@@ -243,13 +243,6 @@ export class ExerciseWrapper extends NormalType<
             }
         }
     };
-
-    // Call the tick every 1000 ms
-    private readonly tickInterval = 1000;
-    private readonly tickHandler = new PeriodicEventHandler(
-        this.tick,
-        this.tickInterval
-    );
 
     private readonly clients = new Set<ClientWrapper>();
 
@@ -505,6 +498,10 @@ export class ExerciseWrapper extends NormalType<
         };
         this.applyAction(addClientAction, client.id);
         // Only after all this add the client in order to not send the action adding itself to it
+        this.addExistingClient(clientWrapper);
+    }
+
+    public addExistingClient(clientWrapper: ClientWrapper) {
         this.clients.add(clientWrapper);
     }
 
@@ -523,7 +520,7 @@ export class ExerciseWrapper extends NormalType<
             this.clients.delete(clientWrapper);
         });
         if (
-            this.clients.size === 0 &&
+            Object.values(this.currentState.clients).length === 0 &&
             this.currentState.currentStatus === 'running'
         ) {
             // Pause the exercise
@@ -536,12 +533,14 @@ export class ExerciseWrapper extends NormalType<
         }
     }
 
+    public started = false;
+
     public start() {
-        this.tickHandler.start();
+        this.started = true;
     }
 
     public pause() {
-        this.tickHandler.pause();
+        this.started = false;
     }
 
     /**

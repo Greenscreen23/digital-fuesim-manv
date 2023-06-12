@@ -8,13 +8,12 @@ import {
 } from 'digital-fuesim-manv-shared';
 import type { DatabaseService } from '../database/services/database-service';
 import { ExerciseWrapper } from '../exercise/exercise-wrapper';
-import type { HttpResponse } from '../exercise/http-handler/utils';
 
 export async function importExercise(
     importObject: StateExport,
     ids: ExerciseIds,
     databaseService: DatabaseService
-): Promise<ExerciseWrapper | HttpResponse<ExerciseIds>> {
+): Promise<ExerciseWrapper> {
     const migratedImportObject = migrateStateExport(importObject);
     // console.log(
     //     inspect(importObject.history, { depth: 2, colors: true })
@@ -31,12 +30,9 @@ export async function importExercise(
     // );
     const validationErrors = validateExerciseExport(importInstance);
     if (validationErrors.length > 0) {
-        return {
-            statusCode: 400,
-            body: {
-                message: `The validation of the import failed: ${validationErrors}`,
-            },
-        };
+        throw new Error(
+            `The validation of the import failed: ${validationErrors}`
+        );
     }
     try {
         return await ExerciseWrapper.importFromFile(
@@ -49,12 +45,7 @@ export async function importExercise(
         );
     } catch (e: unknown) {
         if (e instanceof ReducerError) {
-            return {
-                statusCode: 400,
-                body: {
-                    message: `Error importing exercise: ${e.message}`,
-                },
-            };
+            throw new TypeError(`Error importing exercise: ${e.message}`);
         }
         throw e;
     }

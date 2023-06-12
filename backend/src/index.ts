@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import * as util from 'node:util';
 import { ReducerError } from 'digital-fuesim-manv-shared';
 import { ValidationErrorWrapper } from './utils/validation-error-wrapper';
@@ -25,6 +26,14 @@ async function main() {
             'Note that no database gets used. This means any data created will be stored in-memory until the exercise gets deleted or the server stops, and in case the server stops all data is gone.'
         );
     }
+
+    const raftConfig = JSON.parse(
+        fs.readFileSync(Config.raftConfigPath).toString()
+    );
+    const peers = raftConfig.peers.filter(
+        (peer: any) => peer.id !== raftConfig.id
+    );
+
     const databaseService = new DatabaseService(dataSource);
     if (Config.useDb) {
         try {
@@ -63,7 +72,7 @@ async function main() {
         }
     }
     // eslint-disable-next-line no-new
-    new FuesimServer(databaseService);
+    new FuesimServer(databaseService, peers);
 }
 
 main();

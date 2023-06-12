@@ -3,39 +3,41 @@ import type {
     ExerciseTimeline,
     StateExport,
 } from 'digital-fuesim-manv-shared';
-import { ExerciseState } from 'digital-fuesim-manv-shared';
-import { isEmpty } from 'lodash-es';
-import { importExercise } from '../../../utils/import-exercise';
+import type {
+    CreateExerciseAction,
+    DeleteExerciseAction,
+} from 'exercise/backend-websocket';
+import { createExercise } from '../../../exercise/exercise-helpers';
 import type { DatabaseService } from '../../../database/services/database-service';
 import { UserReadableIdGenerator } from '../../../utils/user-readable-id-generator';
 import { exerciseMap } from '../../exercise-map';
-import { ExerciseWrapper } from '../../exercise-wrapper';
 import type { HttpResponse } from '../utils';
 
 export async function postExercise(
     databaseService: DatabaseService,
-    importObject: StateExport
+    importObject: StateExport,
+    onCreate: (action: CreateExerciseAction, exerciseId: string) => void
 ): Promise<HttpResponse<ExerciseIds>> {
     try {
         const participantId = UserReadableIdGenerator.generateId();
         const trainerId = UserReadableIdGenerator.generateId(8);
-        const newExerciseOrError = isEmpty(importObject)
-            ? ExerciseWrapper.create(
-                  participantId,
-                  trainerId,
-                  databaseService,
-                  ExerciseState.create(participantId)
-              )
-            : await importExercise(
-                  importObject,
-                  { participantId, trainerId },
-                  databaseService
-              );
-        if (!(newExerciseOrError instanceof ExerciseWrapper)) {
-            return newExerciseOrError;
-        }
+        const newExerciseOrError = await createExercise(
+            databaseService,
+            importObject,
+            participantId,
+            trainerId
+        );
         exerciseMap.set(participantId, newExerciseOrError);
         exerciseMap.set(trainerId, newExerciseOrError);
+        onCreate(
+            {
+                type: '[Backend] Create Exercise',
+                trainerId,
+                participantId,
+                importObject,
+            },
+            trainerId
+        );
         return {
             statusCode: 201,
             body: {
@@ -43,7 +45,7 @@ export async function postExercise(
                 trainerId,
             },
         };
-    } catch (error: unknown) {
+    } catch (error: any) {
         if (error instanceof RangeError) {
             return {
                 statusCode: 503,
@@ -52,7 +54,12 @@ export async function postExercise(
                 },
             };
         }
-        throw error;
+        return {
+            statusCode: 400,
+            body: {
+                message: error,
+            },
+        };
     }
 }
 
@@ -65,7 +72,8 @@ export function getExercise(exerciseId: string): HttpResponse {
 }
 
 export async function deleteExercise(
-    exerciseId: string
+    exerciseId: string,
+    onDelete: (action: DeleteExerciseAction, exerciseId: string) => void
 ): Promise<HttpResponse> {
     const exerciseWrapper = exerciseMap.get(exerciseId);
     if (exerciseWrapper === undefined) {
@@ -85,6 +93,12 @@ export async function deleteExercise(
             },
         };
     }
+    onDelete(
+        {
+            type: '[Backend] Delete Exercise',
+        },
+        exerciseId
+    );
     await exerciseWrapper.deleteExercise();
     return {
         statusCode: 204,

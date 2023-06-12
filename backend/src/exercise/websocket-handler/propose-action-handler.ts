@@ -1,17 +1,19 @@
 import type { ExerciseAction } from 'digital-fuesim-manv-shared';
 import {
-    ReducerError,
     ExpectedReducerError,
+    ReducerError,
     validateExerciseAction,
     validatePermissions,
 } from 'digital-fuesim-manv-shared';
+import type { ApplyExerciseAction } from 'exercise/backend-websocket';
 import type { ExerciseServer, ExerciseSocket } from '../../exercise-server';
 import { clientMap } from '../client-map';
 import { secureOn } from './secure-on';
 
 export const registerProposeActionHandler = (
     io: ExerciseServer,
-    client: ExerciseSocket
+    client: ExerciseSocket,
+    onApply: (action: ApplyExerciseAction, exerciseId: string) => void
 ) => {
     secureOn(
         client,
@@ -69,6 +71,14 @@ export const registerProposeActionHandler = (
             // 4. apply & broadcast action (+ save to timeline)
             try {
                 exerciseWrapper.applyAction(action, clientWrapper.client.id);
+                onApply(
+                    {
+                        type: '[Backend] Apply Exercise Action',
+                        action,
+                        emitterId: clientWrapper.client.id,
+                    },
+                    exerciseWrapper.trainerId
+                );
             } catch (error: any) {
                 if (error instanceof ReducerError) {
                     if (error instanceof ExpectedReducerError) {

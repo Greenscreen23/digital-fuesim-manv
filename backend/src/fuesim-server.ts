@@ -6,10 +6,12 @@ import { ExerciseHttpServer } from './exercise/http-server';
 import { Config } from './config';
 import type { DatabaseService } from './database/services/database-service';
 import type { ExerciseWrapper } from './exercise/exercise-wrapper';
+import { BackendWebsocketServer } from './exercise/backend-websocket';
 
 export class FuesimServer {
     private readonly _httpServer: ExerciseHttpServer;
     private readonly _websocketServer: ExerciseWebsocketServer;
+    private readonly _backendWebsocketServer: BackendWebsocketServer;
 
     private readonly saveTick = async () => {
         const exercisesToSave: ExerciseWrapper[] = [];
@@ -71,13 +73,39 @@ export class FuesimServer {
         this.saveTickInterval
     );
 
-    constructor(private readonly databaseService: DatabaseService) {
+    private readonly tickInterval = 1000;
+
+    private readonly tickHandler = new PeriodicEventHandler(async () => {
+        exerciseMap.forEach((exercise, id) => {
+            if (exercise.getRoleFromUsedId(id) !== 'trainer') {
+                exercise.tick(this.tickInterval);
+            }
+        });
+    }, this.tickInterval);
+
+    constructor(
+        private readonly databaseService: DatabaseService,
+        peers: { id: string; url: string }[]
+    ) {
         const app = express();
-        this._websocketServer = new ExerciseWebsocketServer(app);
-        this._httpServer = new ExerciseHttpServer(app, databaseService);
+
+        this._backendWebsocketServer = new BackendWebsocketServer(
+            peers,
+            this.databaseService
+        );
+        this._websocketServer = new ExerciseWebsocketServer(
+            app,
+            this._backendWebsocketServer
+        );
+        this._httpServer = new ExerciseHttpServer(
+            app,
+            databaseService,
+            this._backendWebsocketServer
+        );
         if (Config.useDb) {
             this.saveHandler.start();
         }
+        this.tickHandler.start();
     }
 
     public get websocketServer(): ExerciseWebsocketServer {
@@ -86,6 +114,10 @@ export class FuesimServer {
 
     public get httpServer(): ExerciseHttpServer {
         return this._httpServer;
+    }
+
+    public get backendWebsocketServer(): BackendWebsocketServer {
+        return this._backendWebsocketServer;
     }
 
     public async destroy() {

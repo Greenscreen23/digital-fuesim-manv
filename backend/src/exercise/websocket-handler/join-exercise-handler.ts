@@ -3,15 +3,22 @@ import { ValidationErrorWrapper } from '../../utils/validation-error-wrapper';
 import type { ExerciseServer, ExerciseSocket } from '../../exercise-server';
 import { clientMap } from '../client-map';
 import { secureOn } from './secure-on';
+import { MongoService } from '../../database/mongo-service';
 
 export const registerJoinExerciseHandler = (
     io: ExerciseServer,
-    client: ExerciseSocket
+    client: ExerciseSocket,
+    mongoService: MongoService
 ) => {
     secureOn(
         client,
         'joinExercise',
-        (exerciseId: string, clientName: string, callback): void => {
+        async (
+            exerciseId: string,
+            clientName: string,
+            clientId: UUID | undefined,
+            callback
+        ) => {
             // When this listener is registered the socket is in the map.
             const clientWrapper = clientMap.get(client)!;
             if (clientWrapper.exercise) {
@@ -22,11 +29,16 @@ export const registerJoinExerciseHandler = (
                 });
                 return;
             }
-            let clientId: UUID | undefined;
+            let newClientId: UUID | undefined;
             try {
-                clientId = clientMap
+                newClientId = await clientMap
                     .get(client)
-                    ?.joinExercise(exerciseId, clientName);
+                    ?.joinExercise(
+                        exerciseId,
+                        clientName,
+                        clientId,
+                        mongoService
+                    );
             } catch (e: unknown) {
                 if (e instanceof ValidationErrorWrapper) {
                     callback({
@@ -38,7 +50,7 @@ export const registerJoinExerciseHandler = (
                 }
                 throw e;
             }
-            if (!clientId) {
+            if (!newClientId) {
                 callback({
                     success: false,
                     message: 'The exercise does not exist',
@@ -48,7 +60,7 @@ export const registerJoinExerciseHandler = (
             }
             callback({
                 success: true,
-                payload: clientId,
+                payload: newClientId,
             });
         }
     );

@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import * as util from 'node:util';
 import { ReducerError } from 'digital-fuesim-manv-shared';
 import { ValidationErrorWrapper } from './utils/validation-error-wrapper';
@@ -63,7 +64,7 @@ async function main() {
         }
     }
     // eslint-disable-next-line no-new
-    new FuesimServer(databaseService);
+    new FuesimServer(databaseService, Config.mongoUrl);
 }
 
 main();

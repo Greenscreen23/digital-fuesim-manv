@@ -1,0 +1,46 @@
+version: '3'
+
+services:
+  node1:
+    image: mongo
+    restart: always
+    ports:
+      - 27017:27017
+    volumes:
+      - mongo1:/data/db
+    command: mongod --replSet rs0
+
+  node2:
+    image: mongo
+    restart: always
+    ports:
+      - 27018:27017
+    volumes:
+      - mongo2:/data/db
+    command: mongod --replSet rs0
+
+  node3:
+    image: mongo
+    restart: always
+    ports:
+      - 27019:27017
+    volumes:
+      - mongo3:/data/db
+    command: mongod --replSet rs0
+
+  client1:
+    image: node:18-bullseye-slim
+    volumes:
+      - ./inc.js:/root/inc.js
+    command: sleep infinity
+    
+  client2:
+    image: node:18-bullseye-slim
+    volumes:
+      - ./inc.js:/root/inc.js
+    command: sleep infinity
+
+volumes:
+  mongo1:
+  mongo2:
+  mongo3:

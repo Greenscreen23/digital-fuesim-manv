@@ -6,10 +6,12 @@ import { ExerciseHttpServer } from './exercise/http-server';
 import { Config } from './config';
 import type { DatabaseService } from './database/services/database-service';
 import type { ExerciseWrapper } from './exercise/exercise-wrapper';
+import { MongoService } from './database/mongo-service';
 
 export class FuesimServer {
     private readonly _httpServer: ExerciseHttpServer;
     private readonly _websocketServer: ExerciseWebsocketServer;
+    private readonly _mongoService: MongoService;
 
     private readonly saveTick = async () => {
         const exercisesToSave: ExerciseWrapper[] = [];
@@ -71,13 +73,22 @@ export class FuesimServer {
         this.saveTickInterval
     );
 
-    constructor(private readonly databaseService: DatabaseService) {
+    constructor(
+        private readonly databaseService: DatabaseService,
+        mongoUrl: string
+    ) {
         const app = express();
-        this._websocketServer = new ExerciseWebsocketServer(app);
-        this._httpServer = new ExerciseHttpServer(app, databaseService);
+        this._mongoService = new MongoService(this.databaseService, mongoUrl, 'dfm');
+        this.mongoService.connect()
+        this._websocketServer = new ExerciseWebsocketServer(app, this.mongoService);
+        this._httpServer = new ExerciseHttpServer(app, databaseService, this.mongoService);
         if (Config.useDb) {
             this.saveHandler.start();
         }
+    }
+
+    public get mongoService(): MongoService {
+        return this._mongoService;
     }
 
     public get websocketServer(): ExerciseWebsocketServer {
@@ -89,6 +100,7 @@ export class FuesimServer {
     }
 
     public async destroy() {
+        this.mongoService.close();
         this.httpServer.close();
         this.websocketServer.close();
         this.saveHandler.pause();

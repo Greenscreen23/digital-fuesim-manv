@@ -12,13 +12,18 @@ import {
 } from './http-handler/api/exercise';
 import { getHealth } from './http-handler/api/health';
 import { secureHttp } from './http-handler/secure-http';
+import { MongoService } from '../database/mongo-service';
 
 export class ExerciseHttpServer {
     public readonly httpServer: HttpServer;
     /**
      * @param uploadLimit in Megabyte can be set via ENV DFM_UPLOAD_LIMIT
      */
-    constructor(app: Express, databaseService: DatabaseService) {
+    constructor(
+        app: Express,
+        databaseService: DatabaseService,
+        mongoService: MongoService
+    ) {
         // TODO: Temporary allow all
         app.use(cors());
 
@@ -29,13 +34,20 @@ export class ExerciseHttpServer {
         // This is used for the Cypress CI.
         app.get('/api/health', async (_req, res) => secureHttp(getHealth, res));
         app.post('/api/exercise', async (req, res) =>
-            secureHttp(async () => postExercise(databaseService, req.body), res)
+            secureHttp(
+                async () =>
+                    postExercise(databaseService, req.body, mongoService),
+                res
+            )
         );
         app.get('/api/exercise/:exerciseId', async (req, res) =>
             secureHttp(() => getExercise(req.params.exerciseId), res)
         );
         app.delete('/api/exercise/:exerciseId', async (req, res) =>
-            secureHttp(async () => deleteExercise(req.params.exerciseId), res)
+            secureHttp(
+                async () => deleteExercise(req.params.exerciseId, mongoService),
+                res
+            )
         );
         app.get('/api/exercise/:exerciseId/history', async (req, res) =>
             secureHttp(

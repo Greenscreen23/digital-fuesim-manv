@@ -11,10 +11,14 @@ import {
     registerJoinExerciseHandler,
     registerProposeActionHandler,
 } from './websocket-handler';
+import { MongoService } from '../database/mongo-service';
 
 export class ExerciseWebsocketServer {
     public readonly exerciseServer: ExerciseServer;
-    public constructor(app: core.Express) {
+    public constructor(
+        app: core.Express,
+        private readonly mongoService: MongoService
+    ) {
         const server = createServer(app);
 
         this.exerciseServer = new Server(server, {
@@ -38,12 +42,20 @@ export class ExerciseWebsocketServer {
 
         // register handlers
         registerGetStateHandler(this.exerciseServer, client);
-        registerProposeActionHandler(this.exerciseServer, client);
-        registerJoinExerciseHandler(this.exerciseServer, client);
+        registerProposeActionHandler(
+            this.exerciseServer,
+            client,
+            this.mongoService
+        );
+        registerJoinExerciseHandler(
+            this.exerciseServer,
+            client,
+            this.mongoService
+        );
 
         // Register disconnect handler
-        client.on('disconnect', () => {
-            clientMap.get(client)!.leaveExercise();
+        client.on('disconnect', async () => {
+            await clientMap.get(client)!.leaveExercise(this.mongoService);
             clientMap.delete(client);
         });
     }

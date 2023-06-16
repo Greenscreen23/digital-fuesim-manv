@@ -1,0 +1,66 @@
+version: '3'
+services:
+  rabbitmq1:
+    image: rabbitmq:3.8-management
+    hostname: rabbitmq1
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq1:/var/lib/rabbitmq
+      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+    environment:
+      - RABBITMQ_ERLANG_COOKIE=secret
+      - RABBITMQ_NODENAME=rabbitmq1
+      - RABBITMQ_CLUSTERED=true
+      - RABBITMQ_CLUSTER_NODE_NAME=rabbitmq1@rabbitmq1
+    ulimits:
+      nofile:
+        soft: 4096
+        hard: 8192
+
+
+  rabbitmq2:
+    image: rabbitmq:3.8-management
+    hostname: rabbitmq2
+    ports:
+      - "5673:5672"
+      - "15673:15672"
+    volumes:
+      - rabbitmq2:/var/lib/rabbitmq
+      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+    environment:
+      - RABBITMQ_ERLANG_COOKIE=secret
+      - RABBITMQ_NODENAME=rabbitmq2
+      - RABBITMQ_CLUSTERED=true
+      - RABBITMQ_CLUSTER_NODE_NAME=rabbitmq1@rabbitmq1
+    ulimits:
+      nofile:
+        soft: 4096
+        hard: 8192
+
+
+  rabbitmq3:
+    image: rabbitmq:3.8-management
+    hostname: rabbitmq3
+    ports:
+      - "5674:5672"
+      - "15674:15672"
+    volumes:
+      - rabbitmq3:/var/lib/rabbitmq
+      - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+    environment:
+      - RABBITMQ_ERLANG_COOKIE=secret
+      - RABBITMQ_NODENAME=rabbitmq3
+      - RABBITMQ_CLUSTERED=true
+      - RABBITMQ_CLUSTER_NODE_NAME=rabbitmq1@rabbitmq1
+    ulimits:
+      nofile:
+        soft: 4096
+        hard: 8192
+
+
+volumes:
+  rabbitmq1:
+  rabbitmq2:
+  rabbitmq3:

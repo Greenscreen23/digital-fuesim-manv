@@ -1,0 +1,77 @@
+version: '3'
+services:
+    dfm1:
+        image: digital-fuesim-manv-dfm-raft
+        build:
+            context: .
+            dockerfile: docker/Dockerfile.dev
+        restart: unless-stopped
+        container_name: digital-fuesim-manv-1
+        environment:
+            - DFM_MONGO_URL=mongodb://mongo1:27017
+        ports:
+            - 127.0.0.1:4201:4200
+            - 127.0.0.1:3301:3201
+            - 127.0.0.1:3201:3200
+        volumes:
+            - /usr/bin/mongosh:/usr/local/bin/mongosh:ro
+        env_file:
+            - .env
+    mongo1:
+        image: mongo
+        restart: unless-stopped
+        ports:
+            - 27001:27017
+        volumes:
+            - mongo1:/data/db
+        command: mongod --replSet rs0
+
+    dfm2:
+        image: digital-fuesim-manv-dfm-raft
+        restart: unless-stopped
+        container_name: digital-fuesim-manv-2
+        environment:
+            - DFM_MONGO_URL=mongodb://mongo2:27017
+        ports:
+            - 127.0.0.1:4202:4200
+            - 127.0.0.1:3302:3201
+            - 127.0.0.1:3202:3200
+        volumes:
+            - /usr/bin/mongosh:/usr/local/bin/mongosh:ro
+        env_file:
+            - .env
+    mongo2:
+        image: mongo
+        restart: unless-stopped
+        ports:
+            - 27002:27017
+        volumes:
+            - mongo2:/data/db
+        command: mongod --replSet rs0
+
+    dfm3:
+        image: digital-fuesim-manv-dfm-raft
+        restart: unless-stopped
+        container_name: digital-fuesim-manv-3
+        environment:
+            - DFM_MONGO_URL=mongodb://mongo3:27017
+        ports:
+            - 127.0.0.1:4203:4200
+            - 127.0.0.1:3303:3201
+            - 127.0.0.1:3203:3200
+        volumes:
+            - /usr/bin/mongosh:/usr/local/bin/mongosh:ro
+        env_file:
+            - .env
+    mongo3:
+        image: mongo
+        restart: unless-stopped
+        ports:
+            - 27003:27017
+        volumes:
+            - mongo3:/data/db
+        command: mongod --replSet rs0
+volumes:
+    mongo1:
+    mongo2:
+    mongo3:

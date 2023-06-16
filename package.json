@@ -36,5 +36,9 @@
         "concurrently": "^7.6.0",
         "nyc": "^15.1.0",
         "prettier": "^2.8.3"
+    },
+    "dependencies": {
+        "@cloudamqp/amqp-client": "^2.1.1",
+        "object-hash": "^3.0.0"
     }
 }

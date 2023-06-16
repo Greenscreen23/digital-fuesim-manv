@@ -39,9 +39,10 @@ import {
     selectVisibleVehicles,
 } from '../state/application/selectors/shared.selectors';
 import { selectStateSnapshot } from '../state/get-state-snapshot';
-import { websocketOrigin } from './api-origins';
 import { MessageService } from './messages/message.service';
 import { OptimisticActionHandler } from './optimistic-action-handler';
+import { OriginService } from './origin.service';
+import { ApiService } from './api.service';
 
 /**
  * This Service deals with the state synchronization of a live exercise.
@@ -54,12 +55,12 @@ import { OptimisticActionHandler } from './optimistic-action-handler';
     providedIn: 'root',
 })
 export class ExerciseService {
-    private readonly socket: Socket<
-        ServerToClientEvents,
-        ClientToServerEvents
-    > = io(websocketOrigin, {
-        ...socketIoTransports,
-    });
+    private socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(
+        this.originService.wsOrigin,
+        {
+            ...socketIoTransports,
+        }
+    );
 
     private optimisticActionHandler?: OptimisticActionHandler<
         ExerciseAction,
@@ -69,25 +70,54 @@ export class ExerciseService {
 
     constructor(
         private readonly store: Store<AppState>,
-        private readonly messageService: MessageService
+        private readonly messageService: MessageService,
+        private readonly originService: OriginService,
+        private readonly apiSerivce: ApiService
     ) {
+        this.initializeSocket();
+    }
+
+    private initializeSocket() {
         this.socket.on('performAction', (action: ExerciseAction) => {
             freeze(action, true);
             this.optimisticActionHandler?.performAction(action);
         });
-        this.socket.on('disconnect', (reason) => {
+        this.socket.on('disconnect', async (reason) => {
             if (reason === 'io client disconnect') {
                 return;
             }
-            this.messageService.postError(
-                {
-                    title: 'Die Verbindung zum Server wurde unterbrochen',
-                    body: 'Laden Sie die Seite neu, um die Verbindung wieder herzustellen.',
-                    error: reason,
-                },
-                'alert',
-                null
-            );
+
+            const { exerciseId, ownClientId, lastClientName } =
+                selectStateSnapshot((state) => state.application, this.store);
+
+            this.socket.off('performAction');
+            this.socket.off('disconnect');
+            this.socket.disconnect();
+
+            this.originService.resetOrigins();
+            // eslint-disable-next-line no-await-in-loop
+            while (!(await this.apiSerivce.checkHealth())) {
+                if (!this.originService.newOrigin()) {
+                    this.messageService.postError(
+                        {
+                            title: 'Es konnte kein Server gefunden werden',
+                            body: 'Bitte versuchen Sie es später erneut, indem Sie die Seite neu laden',
+                            error: reason,
+                        },
+                        'alert',
+                        null
+                    );
+                    return;
+                }
+            }
+
+            this.socket = io(this.originService.wsOrigin, {
+                ...socketIoTransports,
+            });
+            if (exerciseId !== undefined && lastClientName !== undefined) {
+                this.joinExercise(exerciseId, lastClientName, ownClientId);
+            }
+            this.initializeSocket();
         });
     }
 
@@ -100,7 +130,8 @@ export class ExerciseService {
      */
     public async joinExercise(
         exerciseId: string,
-        clientName: string
+        clientName: string,
+        clientId?: UUID
     ): Promise<boolean> {
         this.socket.connect().on('connect_error', (error) => {
             this.messageService.postError({
@@ -114,6 +145,7 @@ export class ExerciseService {
                     'joinExercise',
                     exerciseId,
                     clientName,
+                    clientId,
                     resolve
                 );
             }

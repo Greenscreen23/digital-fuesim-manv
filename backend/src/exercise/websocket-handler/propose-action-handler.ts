@@ -1,22 +1,24 @@
 import type { ExerciseAction } from 'digital-fuesim-manv-shared';
 import {
-    ReducerError,
     ExpectedReducerError,
+    ReducerError,
     validateExerciseAction,
     validatePermissions,
 } from 'digital-fuesim-manv-shared';
 import type { ExerciseServer, ExerciseSocket } from '../../exercise-server';
 import { clientMap } from '../client-map';
 import { secureOn } from './secure-on';
+import { MongoService } from '../../database/mongo-service';
 
 export const registerProposeActionHandler = (
     io: ExerciseServer,
-    client: ExerciseSocket
+    client: ExerciseSocket,
+    mongoService: MongoService
 ) => {
     secureOn(
         client,
         'proposeAction',
-        (action: ExerciseAction, callback): void => {
+        async (action: ExerciseAction, callback) => {
             const clientWrapper = clientMap.get(client);
             if (!clientWrapper) {
                 // There is no client. Skip.
@@ -68,7 +70,11 @@ export const registerProposeActionHandler = (
             }
             // 4. apply & broadcast action (+ save to timeline)
             try {
-                exerciseWrapper.applyAction(action, clientWrapper.client.id);
+                await mongoService.addAction(
+                    exerciseWrapper.trainerId,
+                    action,
+                    clientWrapper.client.id
+                );
             } catch (error: any) {
                 if (error instanceof ReducerError) {
                     if (error instanceof ExpectedReducerError) {

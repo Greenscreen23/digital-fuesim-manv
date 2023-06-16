@@ -23,6 +23,10 @@ export class Config {
 
     private static _dbPort?: number;
 
+    private static _mongoUrl?: string;
+
+    private static _mongoDb?: string;
+
     public static get websocketPort(): number {
         this.throwIfNotInitialized();
         return this._websocketPort!;
@@ -71,6 +75,16 @@ export class Config {
     public static get dbPort(): number {
         this.throwIfNotInitialized();
         return this._dbPort!;
+    }
+
+    public static get mongoUrl(): string {
+        this.throwIfNotInitialized();
+        return this._mongoUrl!;
+    }
+
+    public static get mongoDb(): string {
+        this.throwIfNotInitialized();
+        return this._mongoDb!;
     }
 
     private static createTCPPortValidator() {
@@ -126,6 +140,10 @@ export class Config {
             DFM_DB_HOST_TESTING: str({ default: '127.0.0.1' }),
             DFM_DB_PORT: tcpPortValidator({ default: 5432 }),
             DFM_DB_PORT_TESTING: tcpPortValidator({ default: 5432 }),
+            DFM_MONGO_URL: str({ default: 'mongodb://localhost:27017' }),
+            DFM_MONGO_URL_TESTING: str({ default: 'mongodb://localhost:27017' }),
+            DFM_MONGO_DB: str({ default: 'dfm' }),
+            DFM_MONGO_DB_TESTING: str({ default: 'dfm' }),
         });
     }
 
@@ -174,6 +192,8 @@ export class Config {
                 : env.DFM_DB_LOG;
         this._dbHost = testing ? env.DFM_DB_HOST_TESTING : env.DFM_DB_HOST;
         this._dbPort = testing ? env.DFM_DB_PORT_TESTING : env.DFM_DB_PORT;
+        this._mongoUrl = testing ? env.DFM_MONGO_URL_TESTING : env.DFM_MONGO_URL;
+        this._mongoDb = testing ? env.DFM_MONGO_DB_TESTING : env.DFM_MONGO_DB;
         this.isInitialized = true;
     }
 }

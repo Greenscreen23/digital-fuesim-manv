@@ -26,11 +26,12 @@ export function secureOn<
     client.on(event, (async (
         arg0: any,
         arg1: any,
+        arg2: any,
         callback: any,
         ...args: any[]
     ) => {
         try {
-            await listener(arg0, arg1, callback, ...args);
+            await listener(arg0, arg1, arg2, callback, ...args);
         } catch (e: unknown) {
             if (isDevelopment()) {
                 throw e;

@@ -25,7 +25,7 @@ export class OriginService {
     constructor() {
         this.resetOrigins();
         this.currentOriginId = Object.keys(this.currentOrigins)[
-            Math.floor(Math.random() * Object.keys(this.currentOrigins).length)
+            Number(window.location.port.slice(2)) - 1
         ]!;
     }
 

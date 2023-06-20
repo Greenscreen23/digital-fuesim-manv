@@ -36,6 +36,7 @@ export function applyAction(
 ) {
     // Make sure that the action isn't mutated in the reducer (short circuits if the action is already frozen)
     freeze(action, true);
+    draftState.appliedActionCount++;
     return exerciseActionTypeDictionary[action.type].reducer(
         draftState,
         // typescript doesn't narrow action and the reducer to the correct ones based on action.type

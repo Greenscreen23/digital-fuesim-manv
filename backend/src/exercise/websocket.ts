@@ -13,6 +13,7 @@ import {
     registerProposeActionHandler,
 } from './websocket-handler';
 import type { ExerciseStateMachine } from './state-machine';
+import { registerGetStateDiffHandler } from './websocket-handler/get-state-diff-handler';
 
 export class ExerciseWebsocketServer {
     public readonly exerciseServer: ExerciseServer;
@@ -56,6 +57,7 @@ export class ExerciseWebsocketServer {
             this.raftClient,
             this.stateMachine
         );
+        registerGetStateDiffHandler(this.exerciseServer, client);
 
         // Register disconnect handler
         client.on('disconnect', () => {

@@ -21,6 +21,10 @@ export interface ClientToServerEvents {
     getState: (
         callback: (response: SocketResponse<ExerciseState>) => void
     ) => void;
+    getStateDiff: (
+        appliedActionCount: number,
+        callback: (response: SocketResponse<ExerciseAction[]>) => void
+    ) => void;
 }
 
 export interface InterServerEvents {}

@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { Store } from '@ngrx/store';
-import type {
+import {
     ClientToServerEvents,
     ExerciseAction,
     ExerciseState,
@@ -43,6 +43,7 @@ import { MessageService } from './messages/message.service';
 import { OptimisticActionHandler } from './optimistic-action-handler';
 import { OriginService } from './origin.service';
 import { ApiService } from './api.service';
+import { isString } from 'lodash-es';
 
 /**
  * This Service deals with the state synchronization of a live exercise.
@@ -114,8 +115,85 @@ export class ExerciseService {
             this.socket = io(this.originService.wsOrigin, {
                 ...socketIoTransports,
             });
+            this.socket.connect().on('connect_error', (error) => {
+                this.messageService.postError({
+                    title: 'Fehler beim Verbinden zum Server',
+                    error,
+                });
+            });
             if (exerciseId !== undefined && lastClientName !== undefined) {
-                this.joinExercise(exerciseId, lastClientName, ownClientId);
+                const joinResponse = await new Promise<SocketResponse<UUID>>(
+                    (resolve) => {
+                        this.socket.emit(
+                            'joinExercise',
+                            exerciseId,
+                            lastClientName,
+                            ownClientId,
+                            resolve
+                        );
+                    }
+                );
+                if (!joinResponse.success) {
+                    this.messageService.postError({
+                        title: 'Fehler beim Beitreten der Übung',
+                        error: joinResponse.message,
+                    });
+                    return;
+                }
+
+                try {
+                    await new Promise<void>((resolve, reject) => {
+                        const state = selectStateSnapshot(
+                            (state) => state.application.exerciseState,
+                            this.store
+                        );
+                        if (!state) {
+                            reject(
+                                'Der Übungszustand konnte nicht geladen werden'
+                            );
+                            return;
+                        }
+                        this.socket.emit(
+                            'getStateDiff',
+                            state.appliedActionCount,
+                            (response) => {
+                                if (!response.success) {
+                                    reject(response.message);
+                                    return;
+                                }
+
+                                freeze(response.payload, true);
+                                response.payload.forEach((action) => {
+                                    this.store.dispatch(
+                                        createApplyServerActionAction(action)
+                                    );
+                                });
+                                resolve();
+                            }
+                        );
+                    });
+                } catch (error: any) {
+                    if (isString(error)) {
+                        this.messageService.postError({
+                            title: 'Fehler beim Laden des Übungszustands',
+                            error,
+                        });
+                        return;
+                    }
+                    throw error;
+                }
+
+                this.store.dispatch(
+                    createJoinExerciseAction(
+                        joinResponse.payload,
+                        selectStateSnapshot(
+                            (state) => state.application.exerciseState,
+                            this.store
+                        )!,
+                        exerciseId,
+                        lastClientName
+                    )
+                );
             }
             this.initializeSocket();
         });
@@ -130,8 +208,7 @@ export class ExerciseService {
      */
     public async joinExercise(
         exerciseId: string,
-        clientName: string,
-        clientId?: UUID
+        clientName: string
     ): Promise<boolean> {
         this.socket.connect().on('connect_error', (error) => {
             this.messageService.postError({
@@ -145,7 +222,7 @@ export class ExerciseService {
                     'joinExercise',
                     exerciseId,
                     clientName,
-                    clientId,
+                    undefined,
                     resolve
                 );
             }

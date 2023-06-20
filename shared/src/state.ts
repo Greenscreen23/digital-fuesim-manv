@@ -157,6 +157,10 @@ export class ExerciseState {
     @Min(0)
     public readonly patientCounter: number = 0;
 
+    @IsInt()
+    @Min(0)
+    public readonly appliedActionCount: number = 0;
+
     /**
      * The log entries generated for the statistics.
      * This must not be defined on a normal state,

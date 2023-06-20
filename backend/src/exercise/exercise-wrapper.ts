@@ -487,6 +487,14 @@ export class ExerciseWrapper extends NormalType<
         return this.currentState;
     }
 
+    public async getStateDiff(
+        appliedActionCount: number
+    ): Promise<ExerciseAction[]> {
+        return (await this.getTimeLine()).actionsWrappers
+            .slice(appliedActionCount)
+            .map(({ action }) => action);
+    }
+
     // TODO: To more generic function
     private emitAction(action: ExerciseAction) {
         this.clients.forEach((client) => client.emitAction(action));

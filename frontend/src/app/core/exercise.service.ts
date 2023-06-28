@@ -45,6 +45,7 @@ import { OptimisticActionHandler } from './optimistic-action-handler';
 import { OriginService } from './origin.service';
 import { ApiService } from './api.service';
 import { isString } from 'lodash-es';
+import { SimulatedParticipant } from './simulate-participants';
 
 /**
  * This Service deals with the state synchronization of a live exercise.
@@ -79,14 +80,54 @@ export class ExerciseService {
         this.initializeSocket();
     }
 
-    private readonly sendActions: { [id: UUID]: number } = {};
-    private data: number[] = [];
+    private data?: {
+        payloads: { id: UUID; send: number; recieved?: number }[];
+        running: { start: number; end?: number; ticks: number[] }[];
+        connections: { start: number; end?: number; origin: string }[];
+        start: number;
+    };
 
     public async benchmark(): Promise<unknown> {
-        this.data = []
+        this.data = {
+            payloads: [],
+            connections: [
+                { start: Date.now(), origin: this.originService.wsOrigin },
+            ],
+            running: [],
+            start: Date.now(),
+        };
+        const puppet = new SimulatedParticipant(
+            this.store,
+            async (action, optimistic) => {
+                const id = uuid();
+                this.data?.payloads.push({
+                    id,
+                    send: Date.now() - this.data.start,
+                });
+                await new Promise((resolve) => setTimeout(resolve, 100));
+
+                return this.proposeAction(action, optimistic, id);
+            }
+        );
+
+        await puppet.prepareSimulation();
+        await new Promise((resolve) => setTimeout(resolve, 10_000));
+
+        return this.data;
+    }
+
+    public async oldbenchmark(): Promise<unknown> {
+        this.data = {
+            payloads: [],
+            connections: [
+                { start: Date.now(), origin: this.originService.wsOrigin },
+            ],
+            running: [],
+            start: Date.now(),
+        };
         for (let i = 0; i < 1_000; i++) {
-            // eslint-disable-next-line no-await-in-loop
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            // eslint-disable-next-line no-await-in-loop, @typescript-eslint/no-loop-func, no-promise-executor-return
+            await new Promise((resolve) => setTimeout(resolve, 1000));
             const action = {
                 type: '[Hospital] Add hospital',
                 hospital: {
@@ -97,24 +138,61 @@ export class ExerciseService {
                     patientIds: {},
                 },
             } as const;
-            this.sendActions[action.hospital.id] = Date.now()
+            this.data.payloads.push({
+                id: action.hospital.id,
+                send: Date.now() - this.data.start,
+            });
             this.proposeAction(action);
         }
-        await new Promise(resolve => setTimeout(resolve, 10_000));
+        // eslint-disable-next-line no-promise-executor-return
+        await new Promise((resolve) => setTimeout(resolve, 10_000));
         return this.data;
     }
 
     private initializeSocket() {
-        this.socket.on('performAction', (action: ExerciseAction) => {
+        this.data?.connections.push({
+            start: Date.now() - this.data.start,
+            origin: this.originService.wsOrigin,
+        });
+        this.socket.on('performAction', (action: ExerciseAction, id?: UUID) => {
             freeze(action, true);
-            if (action.type === '[Hospital] Add hospital' && this.sendActions[action.hospital.id] !== undefined) {
-                this.data.push(Date.now() - this.sendActions[action.hospital.id]!)
+            if (id) {
+                const payload = this.data?.payloads.find((p) => p.id === id);
+                if (payload) {
+                    payload.recieved = Date.now() - this.data!.start;
+                }
             }
+
+            if (action.type === '[Exercise] Start') {
+                this.data?.running.push({
+                    start: Date.now() - this.data.start,
+                    ticks: [],
+                });
+            }
+
+            if (action.type === '[Exercise] Tick') {
+                this.data?.running
+                    .at(-1)
+                    ?.ticks.push(Date.now() - this.data.start);
+            }
+
+            if (action.type === '[Exercise] Pause') {
+                const lastRun = this.data?.running.at(-1);
+                if (lastRun) {
+                    lastRun.end = Date.now() - this.data!.start;
+                }
+            }
+
             this.optimisticActionHandler?.performAction(action);
         });
         this.socket.on('disconnect', async (reason) => {
             if (reason === 'io client disconnect') {
                 return;
+            }
+
+            if (this.data?.connections.at(-1)) {
+                this.data.connections.at(-1)!.end =
+                    Date.now() - this.data.start;
             }
 
             const { exerciseId, ownClientId, lastClientName } =
@@ -295,10 +373,10 @@ export class ExerciseService {
             () => selectStateSnapshot(selectExerciseState, this.store),
             (action) =>
                 this.store.dispatch(createApplyServerActionAction(action)),
-            async (action) => {
+            async (action, id) => {
                 const response = await new Promise<SocketResponse>(
                     (resolve) => {
-                        this.socket.emit('proposeAction', action, resolve);
+                        this.socket.emit('proposeAction', action, id, resolve);
                     }
                 );
                 if (!response.success) {
@@ -336,7 +414,7 @@ export class ExerciseService {
      * @param optimistic wether the action should be applied before the server responds (to reduce latency) (this update is guaranteed to be synchronous)
      * @returns the response of the server
      */
-    public async proposeAction(action: ExerciseAction, optimistic = false) {
+    public async proposeAction(action: ExerciseAction, optimistic: boolean = false, id: UUID | undefined = undefined) {
         if (
             selectStateSnapshot(selectExerciseStateMode, this.store) !==
                 'exercise' ||
@@ -351,7 +429,7 @@ export class ExerciseService {
         }
 
         // TODO: throw if `response.success` is false
-        return this.optimisticActionHandler.proposeAction(action, optimistic);
+        return this.optimisticActionHandler.proposeAction(action, id, optimistic);
     }
 
     private readonly stopNotifications$ = new Subject<void>();

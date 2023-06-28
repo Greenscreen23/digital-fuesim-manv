@@ -232,6 +232,7 @@ export class ExerciseWrapper extends NormalType<
                 this.trainerId,
                 this.emitterId,
                 updateAction,
+                undefined,
                 stateMachine
             );
         } catch (e: unknown) {
@@ -245,6 +246,7 @@ export class ExerciseWrapper extends NormalType<
                     {
                         type: '[Exercise] Pause',
                     },
+                    undefined,
                     stateMachine
                 );
             } catch {
@@ -496,8 +498,8 @@ export class ExerciseWrapper extends NormalType<
     }
 
     // TODO: To more generic function
-    private emitAction(action: ExerciseAction) {
-        this.clients.forEach((client) => client.emitAction(action));
+    private emitAction(action: ExerciseAction, id: UUID | undefined) {
+        this.clients.forEach((client) => client.emitAction(action, id));
     }
 
     public async addClient(
@@ -519,6 +521,7 @@ export class ExerciseWrapper extends NormalType<
                 this.trainerId,
                 client.id,
                 addClientAction,
+                undefined,
                 stateMachine
             );
             // Only after all this add the client in order to not send the action adding itself to it
@@ -555,6 +558,7 @@ export class ExerciseWrapper extends NormalType<
                 this.trainerId,
                 clientId,
                 removeClientAction,
+                undefined,
                 stateMachine
             );
         } catch (error: unknown) {
@@ -573,6 +577,7 @@ export class ExerciseWrapper extends NormalType<
                     {
                         type: '[Exercise] Pause',
                     },
+                    undefined,
                     stateMachine
                 );
             } catch (error: unknown) {
@@ -599,11 +604,12 @@ export class ExerciseWrapper extends NormalType<
     public applyAction(
         action: ExerciseAction,
         emitterId: UUID | null,
+        actionId: UUID | undefined,
         intermediateAction?: () => void
     ): void {
         this.reduce(action, emitterId);
         intermediateAction?.();
-        this.emitAction(action);
+        this.emitAction(action, actionId);
     }
 
     /**

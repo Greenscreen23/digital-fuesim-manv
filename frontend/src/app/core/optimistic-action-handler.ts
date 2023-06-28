@@ -2,6 +2,7 @@ import type {
     Immutable,
     JsonObject,
     SocketResponse,
+    UUID,
 } from 'digital-fuesim-manv-shared';
 import { isEqual } from 'lodash-es';
 
@@ -39,7 +40,8 @@ export class OptimisticActionHandler<
          * Sends the action to the server and resolves with the servers response
          */
         private readonly sendAction: (
-            action: Immutable<Action>
+            action: Immutable<Action>,
+            id: UUID | undefined
         ) => Promise<ServerResponse>
     ) {}
 
@@ -84,14 +86,15 @@ export class OptimisticActionHandler<
      */
     public async proposeAction(
         proposedAction: Immutable<Action>,
+        id: UUID | undefined,
         beOptimistic: boolean
     ): Promise<ServerResponse> {
         if (!beOptimistic) {
-            return this.sendAction(proposedAction);
+            return this.sendAction(proposedAction, id);
         }
         this.optimisticallyAppliedActions.push(proposedAction);
         this.applyAction(proposedAction);
-        const response = await this.sendAction(proposedAction);
+        const response = await this.sendAction(proposedAction, id);
         if (response.success) {
             // If the response is successful the actions has already been removed by the `performAction` function before.
             return response;

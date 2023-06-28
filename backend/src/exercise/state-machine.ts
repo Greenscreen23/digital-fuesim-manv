@@ -178,7 +178,7 @@ export class ExerciseStateMachine extends raft.api.StateMachineBase {
         }
 
         try {
-            exerciseWrapper.applyAction(action.action, action.clientId);
+            exerciseWrapper.applyAction(action.action, action.clientId, action.actionId);
 
             switch (action.action.type) {
                 case '[Exercise] Tick':

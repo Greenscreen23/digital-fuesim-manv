@@ -3,7 +3,7 @@ import type { ExerciseAction } from '../store';
 import type { UUID } from '../utils';
 
 export interface ServerToClientEvents {
-    performAction: (action: ExerciseAction) => void;
+    performAction: (action: ExerciseAction, id: UUID | undefined) => void;
 }
 
 // The last argument is always expected to be the callback function. (To be able to use it in advanced typings)
@@ -16,6 +16,7 @@ export interface ClientToServerEvents {
     ) => void;
     proposeAction: (
         action: ExerciseAction,
+        id: UUID | undefined,
         callback: (response: SocketResponse) => void
     ) => void;
     getState: (

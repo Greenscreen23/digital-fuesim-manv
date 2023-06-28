@@ -1,6 +1,6 @@
 import raft from 'node-zmq-raft';
 import { encode } from 'msgpack-lite';
-import type { ExerciseAction, StateExport } from 'digital-fuesim-manv-shared';
+import type { ExerciseAction, StateExport, UUID } from 'digital-fuesim-manv-shared';
 import type { ExerciseStateMachine } from 'exercise/state-machine';
 import type { ExerciseRaftAction } from './types';
 
@@ -43,6 +43,7 @@ export async function proposeExerciseActionToStateMachine(
     exerciseId: string,
     clientId: string | null,
     action: ExerciseAction,
+    actionId: UUID | undefined,
     stateMachine: ExerciseStateMachine
 ): Promise<void> {
     return sendToStateMachine(
@@ -51,6 +52,7 @@ export async function proposeExerciseActionToStateMachine(
             type: 'proposeExerciseActionRaftAction',
             exerciseId,
             clientId,
+            actionId,
             action,
         },
         stateMachine

@@ -59,6 +59,28 @@ export class ExerciseSettingsModalComponent {
         });
     }
 
+
+    public setNumberOfVehicles(numberOfVehicles: number) {
+        this.exerciseService.proposeAction({
+            type: '[Configuration] Set numberOfVehicles',
+            numberOfVehicles,
+        });
+    }
+
+    public setNumberOfPatients(numberOfPatients: number) {
+        this.exerciseService.proposeAction({
+            type: '[Configuration] Set numberOfPatients',
+            numberOfPatients,
+        });
+    }
+
+    public setTestDuration(testDuration: number) {
+        this.exerciseService.proposeAction({
+            type: '[Configuration] Set testDuration',
+            testDuration,
+        });
+    }
+
     public close() {
         this.activeModal.close();
     }

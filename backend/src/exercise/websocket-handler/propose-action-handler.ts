@@ -1,4 +1,4 @@
-import type { ExerciseAction } from 'digital-fuesim-manv-shared';
+import type { ExerciseAction, UUID } from 'digital-fuesim-manv-shared';
 import {
     validateExerciseAction,
     validatePermissions,
@@ -19,7 +19,7 @@ export const registerProposeActionHandler = (
     secureOn(
         client,
         'proposeAction',
-        async (action: ExerciseAction, callback): Promise<void> => {
+        async (action: ExerciseAction, id: UUID | undefined, callback): Promise<void> => {
             const clientWrapper = clientMap.get(client);
             if (!clientWrapper) {
                 // There is no client. Skip.
@@ -76,6 +76,7 @@ export const registerProposeActionHandler = (
                     exerciseWrapper.trainerId,
                     clientWrapper.client.id,
                     action,
+                    id,
                     stateMachine
                 );
             } catch (error: any) {

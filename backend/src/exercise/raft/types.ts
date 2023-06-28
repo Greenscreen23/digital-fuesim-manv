@@ -1,4 +1,4 @@
-import type { ExerciseAction, StateExport } from 'digital-fuesim-manv-shared';
+import type { ExerciseAction, StateExport, UUID } from 'digital-fuesim-manv-shared';
 
 export interface RaftAction {
     type: `${string}RaftAction`;
@@ -8,6 +8,7 @@ export interface ProposeExerciseActionRaftAction extends RaftAction {
     type: 'proposeExerciseActionRaftAction';
     exerciseId: string;
     clientId: string | null;
+    actionId: UUID | undefined;
     action: ExerciseAction;
 }
 

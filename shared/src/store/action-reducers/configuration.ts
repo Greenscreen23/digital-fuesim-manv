@@ -1,5 +1,11 @@
 import { Type } from 'class-transformer';
-import { IsBoolean, IsString, ValidateNested } from 'class-validator';
+import {
+    IsBoolean,
+    IsNumber,
+    IsString,
+    Min,
+    ValidateNested,
+} from 'class-validator';
 import { TileMapProperties } from '../../models/utils';
 import { cloneDeepMutable } from '../../utils';
 import { IsValue } from '../../utils/validators';
@@ -36,6 +42,33 @@ export class SetPatientIdentifierPrefixAction implements Action {
 
     @IsString()
     public readonly patientIdentifierPrefix!: string;
+}
+
+export class SetNumberOfVehiclesAction implements Action {
+    @IsString()
+    public readonly type = '[Configuration] Set numberOfVehicles';
+
+    @IsNumber()
+    @Min(0)
+    public readonly numberOfVehicles!: number;
+}
+
+export class SetNumberOfPatientsAction implements Action {
+    @IsString()
+    public readonly type = '[Configuration] Set numberOfPatients';
+
+    @IsNumber()
+    @Min(0)
+    public readonly numberOfPatients!: number;
+}
+
+export class SetTestDurationAction implements Action {
+    @IsString()
+    public readonly type = '[Configuration] Set testDuration';
+
+    @IsNumber()
+    @Min(0)
+    public readonly testDuration!: number;
 }
 
 export namespace ConfigurationActionReducers {
@@ -80,4 +113,33 @@ export namespace ConfigurationActionReducers {
             },
             rights: 'trainer',
         };
+
+    export const setNumberOfVehicles: ActionReducer<SetNumberOfVehiclesAction> =
+        {
+            action: SetNumberOfVehiclesAction,
+            reducer: (draftState, { numberOfVehicles }) => {
+                draftState.configuration.numberOfVehicles = numberOfVehicles;
+                return draftState;
+            },
+            rights: 'trainer',
+        };
+
+    export const setNumberOfPatients: ActionReducer<SetNumberOfPatientsAction> =
+        {
+            action: SetNumberOfPatientsAction,
+            reducer: (draftState, { numberOfPatients }) => {
+                draftState.configuration.numberOfPatients = numberOfPatients;
+                return draftState;
+            },
+            rights: 'trainer',
+        };
+
+    export const setTestDuration: ActionReducer<SetTestDurationAction> = {
+        action: SetTestDurationAction,
+        reducer: (draftState, { testDuration }) => {
+            draftState.configuration.testDuration = testDuration;
+            return draftState;
+        },
+        rights: 'trainer',
+    };
 }

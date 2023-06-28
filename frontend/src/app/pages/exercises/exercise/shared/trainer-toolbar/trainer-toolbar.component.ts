@@ -19,6 +19,7 @@ import { openExerciseStatisticsModal } from '../exercise-statistics/open-exercis
 import { openHospitalEditorModal } from '../hospital-editor/hospital-editor-modal';
 import { openSimulatedRegionsModal } from '../simulated-region-overview/open-simulated-regions-modal';
 import { openTransferOverviewModal } from '../transfer-overview/open-transfer-overview-modal';
+import { uuid } from 'digital-fuesim-manv-shared';
 
 @Component({
     selector: 'app-trainer-toolbar',
@@ -69,6 +70,24 @@ export class TrainerToolbarComponent {
 
     public openSimulatedRegions() {
         openSimulatedRegionsModal(this.modalService);
+    }
+
+    public async doStuff() {
+        this.download(await this.exerciseService.benchmark(), 'benchmark.json');
+    }
+
+    private download(content: unknown, filename: string) {
+        const file = new Blob([JSON.stringify(content)], { type: 'text/json' });
+        const a = document.createElement('a');
+        const url = URL.createObjectURL(file);
+        a.href = url;
+        a.download = filename;
+        document.body.append(a);
+        a.click();
+        setTimeout(() => {
+            a.remove();
+            window.URL.revokeObjectURL(url);
+        }, 0);
     }
 
     public async deleteExercise() {

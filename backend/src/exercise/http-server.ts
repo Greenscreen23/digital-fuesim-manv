@@ -13,6 +13,8 @@ import {
 import { getHealth } from './http-handler/api/health';
 import { secureHttp } from './http-handler/secure-http';
 import type { ExerciseStateMachine } from './state-machine';
+import type { Origin } from './http-handler/api/origins';
+import { getOrigins } from './http-handler/api/origins';
 
 export class ExerciseHttpServer {
     public readonly httpServer: HttpServer;
@@ -22,7 +24,8 @@ export class ExerciseHttpServer {
     constructor(
         app: Express,
         client: raft.client.ZmqRaftClient,
-        stateMachine: ExerciseStateMachine
+        stateMachine: ExerciseStateMachine,
+        origins: Origin[]
     ) {
         // TODO: Temporary allow all
         app.use(cors());
@@ -33,6 +36,9 @@ export class ExerciseHttpServer {
         // It should be independent from any other services that may or may not be running.
         // This is used for the Cypress CI.
         app.get('/api/health', async (_req, res) => secureHttp(getHealth, res));
+        app.get('/api/origins', async (_req, res) =>
+            secureHttp(() => getOrigins(origins), res)
+        );
         app.post('/api/exercise', async (req, res) =>
             secureHttp(
                 async () => postExercise(req.body, client, stateMachine),

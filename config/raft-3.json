@@ -8,6 +8,13 @@
         { "id": "raft4", "url": "tcp://172.16.238.4:8047" },
         { "id": "raft5", "url": "tcp://172.16.238.5:8047" }
     ],
+    "origins": [
+        { "ws": "ws://localhost:3201", "http": "http://localhost:3301" },
+        { "ws": "ws://localhost:3202", "http": "http://localhost:3302" },
+        { "ws": "ws://localhost:3203", "http": "http://localhost:3303" },
+        { "ws": "ws://localhost:3204", "http": "http://localhost:3304" },
+        { "ws": "ws://localhost:3205", "http": "http://localhost:3305" }
+    ],
     "data": {
         "path": "raft",
         "raft": "raft.pers",

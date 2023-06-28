@@ -12,6 +12,7 @@ import type { AppState } from '../state/app.state';
 import { selectExerciseId } from '../state/application/selectors/application.selectors';
 import { selectStateSnapshot } from '../state/get-state-snapshot';
 import { MessageService } from './messages/message.service';
+import type { Origin } from './origin.service';
 import { OriginService } from './origin.service';
 
 @Injectable({
@@ -23,7 +24,11 @@ export class ApiService {
         private readonly messageService: MessageService,
         private readonly httpClient: HttpClient,
         private readonly originService: OriginService
-    ) {}
+    ) {
+        this.getOrigins().then(
+            ({ origins }) => (this.originService.origins = origins)
+        );
+    }
 
     public async checkHealth() {
         return lastValueFrom(
@@ -33,6 +38,14 @@ export class ApiService {
         )
             .then(() => true)
             .catch(() => false);
+    }
+
+    public async getOrigins() {
+        return lastValueFrom(
+            this.httpClient.get<{ origins: Origin[] }>(
+                `${this.originService.httpOrigin}/api/origins`
+            )
+        );
     }
 
     public async createExercise() {

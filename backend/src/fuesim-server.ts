@@ -113,12 +113,18 @@ export class FuesimServer {
             .then((raftServer) => {
                 this._raftServer = raftServer;
                 this._raftClient = new raft.client.ZmqRaftClient(
-                    raftConfig.peers.map((peer: any) => peer.url)
+                    raftConfig.peers.map((peer: any) => peer.url),
+                    {
+                        timeout: raftConfig.serverResponseTimeout,
+                        serverElectionGraceDelay:
+                            raftConfig.serverElectionGraceDelay,
+                    }
                 );
                 this._httpServer = new ExerciseHttpServer(
                     app,
                     this.raftClient,
-                    this.stateMachine
+                    this.stateMachine,
+                    raftConfig.origins
                 );
 
                 this._websocketServer = new ExerciseWebsocketServer(

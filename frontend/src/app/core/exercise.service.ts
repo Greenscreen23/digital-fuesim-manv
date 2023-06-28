@@ -7,6 +7,7 @@ import {
     ServerToClientEvents,
     SocketResponse,
     UUID,
+    uuid,
 } from 'digital-fuesim-manv-shared';
 import { socketIoTransports } from 'digital-fuesim-manv-shared';
 import { freeze } from 'immer';
@@ -78,9 +79,37 @@ export class ExerciseService {
         this.initializeSocket();
     }
 
+    private readonly sendActions: { [id: UUID]: number } = {};
+    private data: number[] = [];
+
+    public async benchmark(): Promise<unknown> {
+        this.data = []
+        for (let i = 0; i < 1_000; i++) {
+            // eslint-disable-next-line no-await-in-loop
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            const action = {
+                type: '[Hospital] Add hospital',
+                hospital: {
+                    id: uuid(),
+                    type: 'hospital',
+                    name: `Krankenhaus-${i}`,
+                    transportDuration: 3600000,
+                    patientIds: {},
+                },
+            } as const;
+            this.sendActions[action.hospital.id] = Date.now()
+            this.proposeAction(action);
+        }
+        await new Promise(resolve => setTimeout(resolve, 10_000));
+        return this.data;
+    }
+
     private initializeSocket() {
         this.socket.on('performAction', (action: ExerciseAction) => {
             freeze(action, true);
+            if (action.type === '[Hospital] Add hospital' && this.sendActions[action.hospital.id] !== undefined) {
+                this.data.push(Date.now() - this.sendActions[action.hospital.id]!)
+            }
             this.optimisticActionHandler?.performAction(action);
         });
         this.socket.on('disconnect', async (reason) => {

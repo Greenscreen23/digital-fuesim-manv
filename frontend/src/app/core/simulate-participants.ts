@@ -160,7 +160,7 @@ export class SimulatedParticipant {
             });
 
         // every second: check whether you should move a random vehicle, personnel, patient or material
-        this.tickInterval = setInterval(() => {
+        this.tickInterval = setTimeout(() => {
             this.tick();
         }, 1000);
 
@@ -248,6 +248,9 @@ export class SimulatedParticipant {
                 break;
             }
         }
+        this.tickInterval = setTimeout(() => {
+            this.tick();
+        }, 1000);
     }
 
     private readonly probabilityMultiplyer = 4;

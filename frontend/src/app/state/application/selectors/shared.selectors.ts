@@ -50,7 +50,7 @@ export const selectOwnClient = createSelector(
 export const selectCurrentRole = createSelector(
     selectExerciseStateMode,
     selectOwnClient,
-    (mode, ownClient) => (mode === 'exercise' ? ownClient!.role : mode)
+    (mode, ownClient) => ownClient ? (mode === 'exercise' ? ownClient!.role : mode) : undefined
 );
 
 export const selectRestrictedViewport = createSelector(

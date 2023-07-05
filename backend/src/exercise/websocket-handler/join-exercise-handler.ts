@@ -19,6 +19,7 @@ export const registerJoinExerciseHandler = (
             exerciseId: string,
             clientName: string,
             clientId: UUID | undefined,
+            viewRestrictedToViewportId: UUID | undefined,
             callback
         ) => {
             // When this listener is registered the socket is in the map.
@@ -39,6 +40,7 @@ export const registerJoinExerciseHandler = (
                         exerciseId,
                         clientName,
                         clientId,
+                        viewRestrictedToViewportId,
                         raftClient,
                         stateMachine
                     );

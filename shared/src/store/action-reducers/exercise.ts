@@ -4,6 +4,7 @@ import {
     IsBoolean,
     IsInt,
     IsPositive,
+    IsString,
     ValidateNested,
 } from 'class-validator';
 import type { Personnel, PersonnelType, Vehicle } from '../../models';
@@ -23,7 +24,7 @@ import { changePosition } from '../../models/utils/position/position-helpers-mut
 import { simulateAllRegions } from '../../simulation/utils/simulation';
 import type { ExerciseState } from '../../state';
 import type { Mutable, UUID } from '../../utils';
-import { cloneDeepMutable, StrictObject } from '../../utils';
+import { cloneDeepMutable, sleep, StrictObject } from '../../utils';
 import type { ElementTypePluralMap } from '../../utils/element-type-plural-map';
 import { elementTypePluralMap } from '../../utils/element-type-plural-map';
 import { IsValue } from '../../utils/validators';
@@ -73,6 +74,9 @@ export class ExerciseTickAction implements Action {
     @IsInt()
     @IsPositive()
     public readonly tickInterval!: number;
+
+    @IsString()
+    public readonly leaderId!: string;
 }
 
 export namespace ExerciseActionReducers {
@@ -107,7 +111,13 @@ export namespace ExerciseActionReducers {
             draftState.currentTime += tickInterval;
 
             // Refresh patient status
-            patientUpdates.forEach((patientUpdate) => {
+            let count = 0;
+            patientUpdates.forEach(async (patientUpdate) => {
+                count++;
+                if (count === 100) {
+                    count = 0;
+                    await sleep(0);
+                }
                 const currentPatient = draftState.patients[patientUpdate.id]!;
 
                 const visibleStatusBefore = Patient.getVisibleStatus(

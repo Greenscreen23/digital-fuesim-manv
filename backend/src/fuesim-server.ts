@@ -82,10 +82,13 @@ export class FuesimServer {
         if (this.raftServer.isLeader) {
             this.stateMachine.tickAllExercises(
                 this.tickInterval,
-                this.raftClient
+                this.raftClient,
+                this.id
             );
         }
     }, this.tickInterval);
+
+    private readonly id!: string;
 
     constructor(
         private readonly databaseService: DatabaseService,
@@ -99,6 +102,7 @@ export class FuesimServer {
         const raftConfig = JSON.parse(
             fs.readFileSync(raftConfigPath).toString()
         );
+        this.id = raftConfig.id;
         raft.server.builder
             .build({
                 ...raftConfig,

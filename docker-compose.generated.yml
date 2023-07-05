@@ -16,6 +16,7 @@ services:
         environment:
             - DFM_USE_RAFT=true
             - DFM_RAFT_CONFIG_PATH=/usr/local/app/raft.json
+            - DEBUG=zmq-raft:*
         ports:
             - 4201:4200
             - 3301:3201
@@ -36,6 +37,7 @@ services:
         environment:
             - DFM_USE_RAFT=true
             - DFM_RAFT_CONFIG_PATH=/usr/local/app/raft.json
+            - DEBUG=zmq-raft:*
         ports:
             - 4202:4200
             - 3302:3201
@@ -56,6 +58,7 @@ services:
         environment:
             - DFM_USE_RAFT=true
             - DFM_RAFT_CONFIG_PATH=/usr/local/app/raft.json
+            - DEBUG=zmq-raft:*
         ports:
             - 4203:4200
             - 3303:3201
@@ -76,6 +79,7 @@ services:
         environment:
             - DFM_USE_RAFT=true
             - DFM_RAFT_CONFIG_PATH=/usr/local/app/raft.json
+            - DEBUG=zmq-raft:*
         ports:
             - 4204:4200
             - 3304:3201
@@ -96,6 +100,7 @@ services:
         environment:
             - DFM_USE_RAFT=true
             - DFM_RAFT_CONFIG_PATH=/usr/local/app/raft.json
+            - DEBUG=zmq-raft:*
         ports:
             - 4205:4200
             - 3305:3201
@@ -108,4 +113,46 @@ services:
         networks:
             raft:
                 ipv4_address: 172.16.238.5
+        cpuset: "0-5"
+    dfm6:
+        image: digital-fuesim-manv-dfm-raft
+        restart: unless-stopped
+        container_name: digital-fuesim-manv-6
+        environment:
+            - DFM_USE_RAFT=true
+            - DFM_RAFT_CONFIG_PATH=/usr/local/app/raft.json
+            - DEBUG=zmq-raft:*
+        ports:
+            - 4206:4200
+            - 3306:3201
+            - 3206:3200
+            - 8506:8506
+        env_file:
+            - .env
+        volumes:
+            - ./config/raft-6.json:/usr/local/app/raft.json
+        networks:
+            raft:
+                ipv4_address: 172.16.238.6
+        cpuset: "0-5"
+    dfm7:
+        image: digital-fuesim-manv-dfm-raft
+        restart: unless-stopped
+        container_name: digital-fuesim-manv-7
+        environment:
+            - DFM_USE_RAFT=true
+            - DFM_RAFT_CONFIG_PATH=/usr/local/app/raft.json
+            - DEBUG=zmq-raft:*
+        ports:
+            - 4207:4200
+            - 3307:3201
+            - 3207:3200
+            - 8507:8507
+        env_file:
+            - .env
+        volumes:
+            - ./config/raft-7.json:/usr/local/app/raft.json
+        networks:
+            raft:
+                ipv4_address: 172.16.238.7
         cpuset: "0-5"

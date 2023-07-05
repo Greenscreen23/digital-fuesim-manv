@@ -28,5 +28,3 @@ benchmark/data/*
 .vscode/*
 !.vscode/*.example
 !.vscode/extensions.json
-
-/raft

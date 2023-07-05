@@ -1,9 +1,10 @@
-import type { ExerciseAction, UUID } from 'digital-fuesim-manv-shared';
+import type { ExerciseAction, ExerciseState, UUID } from 'digital-fuesim-manv-shared';
 import { Client } from 'digital-fuesim-manv-shared';
 import type raft from 'node-zmq-raft';
 import type { ExerciseSocket } from '../exercise-server';
 import type { ExerciseWrapper } from './exercise-wrapper';
 import type { ExerciseStateMachine } from './state-machine';
+import { proposeExerciseActionToStateMachine } from './raft/send-to-state-machine';
 
 export class ClientWrapper {
     public constructor(private readonly socket: ExerciseSocket) {}
@@ -21,6 +22,7 @@ export class ClientWrapper {
         exerciseId: string,
         clientName: string,
         clientId: UUID | undefined,
+        viewRestrictedToViewportId: UUID | undefined,
         raftClient: raft.client.ZmqRaftClient,
         stateMachine: ExerciseStateMachine
     ): Promise<UUID | undefined> {
@@ -33,6 +35,23 @@ export class ClientWrapper {
         const clients = this.chosenExercise.getStateSnapshot().clients;
         if (clientId && clients[clientId]) {
             this.relatedExerciseClient = clients[clientId];
+            if (
+                this.relatedExerciseClient?.viewRestrictedToViewportId !==
+                viewRestrictedToViewportId
+            ) {
+                await proposeExerciseActionToStateMachine(
+                    raftClient,
+                    exerciseId,
+                    null,
+                    {
+                        type: '[Client] Restrict to viewport',
+                        clientId,
+                        viewportId: viewRestrictedToViewportId,
+                    },
+                    undefined,
+                    stateMachine
+                );
+            }
             this.chosenExercise.addExistingClient(this);
             return clientId;
         }
@@ -41,7 +60,11 @@ export class ClientWrapper {
         // as the provided id is guaranteed to be one of the ids of the exercise as the exercise
         // was fetched with this exact id from the exercise map.
         const role = this.chosenExercise.getRoleFromUsedId(exerciseId);
-        this.relatedExerciseClient = Client.create(clientName, role, undefined);
+        this.relatedExerciseClient = Client.create(
+            clientName,
+            role,
+            viewRestrictedToViewportId
+        );
         await this.chosenExercise.addClient(this, raftClient, stateMachine);
         return this.relatedExerciseClient.id;
     }

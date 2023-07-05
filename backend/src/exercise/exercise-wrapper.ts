@@ -1,4 +1,4 @@
-import type {
+import {
     ExerciseAction,
     ExerciseIds,
     ExerciseTimeline,
@@ -209,10 +209,11 @@ export class ExerciseWrapper extends NormalType<
     public readonly tick = async (
         tickInterval: number,
         client: raft.client.ZmqRaftClient,
-        stateMachine: ExerciseStateMachine
+        stateMachine: ExerciseStateMachine,
+        leaderId: string
     ) => {
         try {
-            const patientUpdates = patientTick(
+            const patientUpdates = await patientTick(
                 this.getStateSnapshot(),
                 tickInterval
             );
@@ -226,6 +227,7 @@ export class ExerciseWrapper extends NormalType<
                 refreshTreatments:
                     this.tickCounter % this.refreshTreatmentInterval === 0,
                 tickInterval,
+                leaderId,
             };
             await proposeExerciseActionToStateMachine(
                 client,

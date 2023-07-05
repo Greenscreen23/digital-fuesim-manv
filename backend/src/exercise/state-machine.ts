@@ -1,10 +1,12 @@
-import { decode } from 'msgpack-lite';
+import { decode, encode } from 'msgpack-lite';
 import raft from 'node-zmq-raft';
 import { isEmpty } from 'lodash-es';
 import {
     ExerciseState,
     ExpectedReducerError,
     ReducerError,
+    StateExport,
+    UUID,
 } from 'digital-fuesim-manv-shared';
 import { importExercise } from '../utils/import-exercise';
 import type { DatabaseService } from '../database/services/database-service';
@@ -16,6 +18,8 @@ import type {
     RemoveExerciseRaftAction,
 } from './raft/types';
 import { ExerciseWrapper } from './exercise-wrapper';
+import { Buffer } from 'node:buffer';
+import { ClientWrapper } from './client-wrapper';
 
 export class ExerciseStateMachine extends raft.api.StateMachineBase {
     exerciseMap = new Map<string, ExerciseWrapper>();
@@ -29,7 +33,7 @@ export class ExerciseStateMachine extends raft.api.StateMachineBase {
 
     constructor(
         private readonly databaseService: DatabaseService,
-        exercises: ExerciseWrapper[]
+        exercises: ExerciseWrapper[],
     ) {
         super();
         exercises.forEach((exercise) => {
@@ -49,7 +53,7 @@ export class ExerciseStateMachine extends raft.api.StateMachineBase {
         entries: Buffer[],
         nextIndex: number,
         currentTerm: number,
-        snapshot?: any
+        snapshot?: raft.common.SnapshotFile
     ) {
         entries.forEach((entry) => {
             if (
@@ -75,19 +79,21 @@ export class ExerciseStateMachine extends raft.api.StateMachineBase {
                         break;
                     default:
                         console.log(
-                            'Recieved entry that was of an unknown type'
+                            'Received entry that was of an unknown type'
                         );
                         break;
                 }
                 this.promises.delete(id);
-            } else {
-                console.log('Recieved entry that was not a state');
             }
         });
         return super.applyEntries(entries, nextIndex, currentTerm, snapshot);
     }
 
-    tickAllExercises(tickInterval: number, client: raft.client.ZmqRaftClient) {
+    tickAllExercises(
+        tickInterval: number,
+        client: raft.client.ZmqRaftClient,
+        leaderId: string
+    ) {
         this.exerciseMap.forEach((exercise, key) => {
             if (key.length !== 8) {
                 return;
@@ -96,7 +102,7 @@ export class ExerciseStateMachine extends raft.api.StateMachineBase {
                 return;
             }
 
-            exercise.tick(tickInterval, client, this);
+            exercise.tick(tickInterval, client, this, leaderId);
         });
     }
 
@@ -178,7 +184,11 @@ export class ExerciseStateMachine extends raft.api.StateMachineBase {
         }
 
         try {
-            exerciseWrapper.applyAction(action.action, action.clientId, action.actionId);
+            exerciseWrapper.applyAction(
+                action.action,
+                action.clientId,
+                action.actionId
+            );
 
             switch (action.action.type) {
                 case '[Exercise] Tick':

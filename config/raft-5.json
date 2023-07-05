@@ -6,14 +6,18 @@
         { "id": "raft2", "url": "tcp://172.16.238.2:8047" },
         { "id": "raft3", "url": "tcp://172.16.238.3:8047" },
         { "id": "raft4", "url": "tcp://172.16.238.4:8047" },
-        { "id": "raft5", "url": "tcp://172.16.238.5:8047" }
+        { "id": "raft5", "url": "tcp://172.16.238.5:8047" },
+        { "id": "raft6", "url": "tcp://172.16.238.6:8047" },
+        { "id": "raft7", "url": "tcp://172.16.238.7:8047" }
     ],
     "origins": [
         { "ws": "ws://localhost:3201", "http": "http://localhost:3301" },
         { "ws": "ws://localhost:3202", "http": "http://localhost:3302" },
         { "ws": "ws://localhost:3203", "http": "http://localhost:3303" },
         { "ws": "ws://localhost:3204", "http": "http://localhost:3304" },
-        { "ws": "ws://localhost:3205", "http": "http://localhost:3305" }
+        { "ws": "ws://localhost:3205", "http": "http://localhost:3305" },
+        { "ws": "ws://localhost:3206", "http": "http://localhost:3306" },
+        { "ws": "ws://localhost:3207", "http": "http://localhost:3307" }
     ],
     "data": {
         "path": "raft",
@@ -32,5 +36,16 @@
             "host": "::",
             "port": null
         }
-    }
+    },
+    "electionTimeoutMin": 400,
+    "electionTimeoutMax": 600,
+    "rpcTimeout": 100,
+    "appendEntriesHeartbeatInterval": 140,
+    "appendEntriesRpcTimeoutMin": 140,
+    "appendEntriesRpcTimeoutMax": 280,
+    "requestIdTtl": 28800000,
+    "requestEntriesTtl": 5000,
+    "serverResponseTimeout": 1000,
+    "serverElectionGraceDelay": 600,
+    "peerMsgDataSize": 1048576
 }

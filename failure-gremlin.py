@@ -1,60 +1,105 @@
 #!/usr/bin/python
 from numpy.random import default_rng
-from argparse import ArgumentParser
+from argparse import ArgumentParser, BooleanOptionalAction
 from datetime import datetime
-import asyncio, subprocess
+import asyncio, subprocess, json
 
 # Availability and unavailability follow a log-normal distribution with these parameters
-AVAIL_MEAN=0.23
-AVAIL_STDDEV=2.02
-UNAVAIL_MEAN=-1.12
-UNAVAIL_STDDEV=1.13
+AVAIL_MEAN = 0.23
+AVAIL_STDDEV = 2.02
+UNAVAIL_MEAN = -1.12
+UNAVAIL_STDDEV = 1.13
 
 # Distribution is in hours, sleep requires seconds
-DISTRIBUTION_TO_SLEEP_CONVERSION_RATE=3_600
+DISTRIBUTION_TO_SLEEP_CONVERSION_RATE = 3_600
 
-parser = ArgumentParser(description='A script to start / stop containers to simulate real world failure rates')
-parser.add_argument('nodes', metavar='node', type=str, nargs='+', help='The nodes to potentially take down')
-parser.add_argument('-c', '--docker-compose-config', type=str, help='The docker compose config file')
+# Factor to apply to the availability and unavailability interval to simulate a stronger hazard rate
+HAZARD_RATE_FACTOR = 1
+
+parser = ArgumentParser(
+    description="A script to start / stop containers to simulate real world failure rates"
+)
+parser.add_argument(
+    "nodes",
+    metavar="node",
+    type=str,
+    nargs="+",
+    help="The nodes to potentially take down",
+)
+parser.add_argument(
+    "-d", "--delete-on-stop", action=BooleanOptionalAction, default=False
+)
+parser.add_argument(
+    "-c", "--docker-compose-config", type=str, help="The docker compose config file"
+)
 args = parser.parse_args()
 
-DOCKER_PREFIX=['/usr/bin/docker', 'compose', '-f', args.docker_compose_config]
+DOCKER_PREFIX = ["/usr/bin/docker", "compose", "-f", args.docker_compose_config]
 
 generator = default_rng()
+
+start = datetime.now()
+log = dict((node, [{"started": 0, "startdrift": 0}]) for node in args.nodes)
+
 
 def printDuration(time):
     hours, remainder = divmod(time, 3600)
     minutes, seconds = divmod(remainder, 60)
-    print(f'{hours}h {minutes}m {seconds}s')
+    print(f"{hours}h {minutes}m {seconds}s")
+
 
 async def playGremlin(node):
-    start = datetime.now()
-    print(f'playing failure gremlin for node {node} from {start}')
+    started = datetime.now()
+    print(f"playing failure gremlin for node {node} from {started}")
 
     while True:
-        avail_interval = generator.lognormal(AVAIL_MEAN, AVAIL_STDDEV) * DISTRIBUTION_TO_SLEEP_CONVERSION_RATE
-        print(f'killing node {node} in ', end='')
+        avail_interval = (
+            generator.lognormal(AVAIL_MEAN, AVAIL_STDDEV)
+            * DISTRIBUTION_TO_SLEEP_CONVERSION_RATE
+            * HAZARD_RATE_FACTOR
+        )
+        print(f"killing node {node} in ", end="")
         printDuration(avail_interval)
 
         await asyncio.sleep(avail_interval)
-        subprocess.run([*DOCKER_PREFIX, 'stop', '-t0', node])
+        subprocess.run([*DOCKER_PREFIX, "stop", "-t0", node])
+        if args.delete_on_stop:
+            subprocess.run([*DOCKER_PREFIX, "rm", "-f", node])
 
-        stop = datetime.now()
-        drift = (stop - start).total_seconds() - avail_interval
-        print(f'stopped node {node} with drift {drift}')
+        stopped = datetime.now()
+        drift = (stopped - started).total_seconds() - avail_interval
+        log[node][-1]["stopped"] = (stopped - start).total_seconds()
+        log[node][-1]["stopdrift"] = drift
+        print(f"stopped node {node} with drift {drift}")
 
-        unavail_interval = generator.lognormal(UNAVAIL_MEAN, UNAVAIL_STDDEV) * DISTRIBUTION_TO_SLEEP_CONVERSION_RATE
-        print(f'resurrecting node {node} in ', end='')
+        unavail_interval = (
+            generator.lognormal(UNAVAIL_MEAN, UNAVAIL_STDDEV)
+            * DISTRIBUTION_TO_SLEEP_CONVERSION_RATE
+            * HAZARD_RATE_FACTOR
+        )
+
+        print(f"resurrecting node {node} in ", end="")
         printDuration(unavail_interval)
 
         await asyncio.sleep(unavail_interval)
-        subprocess.run([*DOCKER_PREFIX, 'start', node])
+        if args.delete_on_stop:
+            subprocess.run([*DOCKER_PREFIX, "up", "-d", node])
+        else:
+            subprocess.run([*DOCKER_PREFIX, "start", node])
 
-        start = datetime.now()
-        drift = (start - stop).total_seconds() - unavail_interval
-        print(f'started node {node} with drift {drift}')
+        started = datetime.now()
+        drift = (started - stopped).total_seconds() - unavail_interval
+        log[node].append({"started": (started - start).total_seconds(), "startdrift": drift})
+        print(f"started node {node} with drift {drift}")
+
 
 async def main():
     await asyncio.gather(*[playGremlin(node) for node in args.nodes])
 
-asyncio.run(main())
+
+try:
+    asyncio.run(main())
+except KeyboardInterrupt:
+    log["end"] = datetime.now() - start
+    with open("benchmark.json", "w") as benchmark:
+        benchmark.write(json.dumps(log))

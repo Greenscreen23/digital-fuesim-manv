@@ -32,6 +32,7 @@ services:
         environment:
             - DFM_USE_RAFT=true
             - DFM_RAFT_CONFIG_PATH=/usr/local/app/raft.json
+            - DEBUG=zmq-raft:*
         ports:
             - 4201:4200
             - 3301:3201
@@ -57,6 +58,7 @@ do
         environment:
             - DFM_USE_RAFT=true
             - DFM_RAFT_CONFIG_PATH=/usr/local/app/raft.json
+            - DEBUG=zmq-raft:*
         ports:
             - 42$padded_index:4200
             - 33$padded_index:3201
@@ -113,17 +115,18 @@ do
             \"host\": \"::\",
             \"port\": null
         }
-    }
+    },
+    \"electionTimeoutMin\": 400,
+    \"electionTimeoutMax\": 600,
+    \"rpcTimeout\": 100,
+    \"appendEntriesHeartbeatInterval\": 140,
+    \"appendEntriesRpcTimeoutMin\": 140,
+    \"appendEntriesRpcTimeoutMax\": 280,
+    \"requestIdTtl\": 28800000,
+    \"requestEntriesTtl\": 5000,
+    \"serverResponseTimeout\": 1000,
+    \"serverElectionGraceDelay\": 600,
+    \"peerMsgDataSize\": 1048576
 }
 " > $RAFT_CONFIG_FOLDER/raft-$index.json
-    # \"electionTimeoutMin\": 200,
-    # \"electionTimeoutMax\": 300,
-    # \"rpcTimeout\": 50,
-    # \"appendEntriesHeartbeatInterval\": 70,
-    # \"appendEntriesRpcTimeoutMin\": 70,
-    # \"appendEntriesRpcTimeoutMax\": 140,
-    # \"requestIdTtl\": 28800000,
-    # \"requestEntriesTtl\": 5000,
-    # \"serverResponseTimeout\": 500,
-    # \"serverElectionGraceDelay\": 300
 done

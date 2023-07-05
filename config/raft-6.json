@@ -1,5 +1,5 @@
 {
-    "id": "raft2",
+    "id": "raft6",
     "secret": "",
     "peers": [
         { "id": "raft1", "url": "tcp://172.16.238.101:8047" },
@@ -29,7 +29,7 @@
     "webmonitor": {
         "enable": true,
         "host": "localhost",
-        "port": 8502,
+        "port": 8506,
         "proto": null,
         "bind": {
             "proto": "http",

@@ -4,6 +4,7 @@ import type { UUID } from '../utils';
 
 export interface ServerToClientEvents {
     performAction: (action: ExerciseAction, id: UUID | undefined) => void;
+    setState: (state: ExerciseState) => void;
 }
 
 // The last argument is always expected to be the callback function. (To be able to use it in advanced typings)
@@ -12,6 +13,7 @@ export interface ClientToServerEvents {
         exerciseId: string,
         clientName: string,
         clientId: UUID | undefined,
+        viewRestrictedToViewportId: UUID | undefined,
         callback: (response: SocketResponse<UUID>) => void
     ) => void;
     proposeAction: (

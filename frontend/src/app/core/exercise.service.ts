@@ -81,8 +81,12 @@ export class ExerciseService {
     }
 
     private data?: {
-        payloads: { id: UUID; send: number; recieved?: number }[];
-        running: { start: number; end?: number; ticks: number[] }[];
+        payloads: { id: UUID; send: number; received?: number }[];
+        running: {
+            start: number;
+            end?: number;
+            ticks: { at: number; leader: string }[];
+        }[];
         connections: { start: number; end?: number; origin: string }[];
         start: number;
     };
@@ -90,23 +94,24 @@ export class ExerciseService {
     public async benchmark(): Promise<unknown> {
         this.data = {
             payloads: [],
-            connections: [
-                { start: Date.now(), origin: this.originService.wsOrigin },
-            ],
+            connections: [{ start: 0, origin: this.originService.wsOrigin }],
             running: [],
             start: Date.now(),
         };
         const puppet = new SimulatedParticipant(
             this.store,
             async (action, optimistic) => {
+                // await new Promise((resolve) => setTimeout(resolve, 100))
                 const id = uuid();
                 this.data?.payloads.push({
                     id,
                     send: Date.now() - this.data.start,
                 });
-                await new Promise((resolve) => setTimeout(resolve, 100));
-
-                return this.proposeAction(action, optimistic, id);
+                try {
+                    await this.proposeAction(action, optimistic, id);
+                } catch (e: unknown) {
+                        console.error(e)
+                }
             }
         );
 
@@ -149,6 +154,123 @@ export class ExerciseService {
         return this.data;
     }
 
+    private async rejoinExercise() {
+        while (this.originService.newOrigin()) {
+            try {
+                // eslint-disable-next-line no-await-in-loop, no-async-promise-executor, @typescript-eslint/no-loop-func
+                await new Promise<void>(async (resolve, reject) => {
+                    const { exerciseId, ownClientId, lastClientName } =
+                        selectStateSnapshot(
+                            (state) => state.application,
+                            this.store
+                        );
+
+                    const ownClient = selectStateSnapshot(selectOwnClient, this.store);
+
+                    this.socket.off('performAction');
+                    this.socket.off('disconnect');
+                    this.socket.disconnect();
+
+                    if (!(await this.apiSerivce.checkHealth())) {
+                        reject('Server ist nicht erreichbar');
+                        return;
+                    }
+
+                    this.socket = io(this.originService.wsOrigin, {
+                        ...socketIoTransports,
+                    });
+                    this.socket.connect().on('connect_error', (error) => {
+                        reject(error);
+                    });
+
+                    if (
+                        exerciseId === undefined ||
+                        lastClientName === undefined
+                    ) {
+                        reject('Es konnte keine Übung gefunden werden');
+                        return;
+                    }
+
+                    const joinResponse = await new Promise<
+                        SocketResponse<UUID>
+                    >((resolve) => {
+                        this.socket.emit(
+                            'joinExercise',
+                            exerciseId,
+                            lastClientName,
+                            ownClientId,
+                            ownClient?.viewRestrictedToViewportId,
+                            resolve
+                        );
+                    });
+
+                    if (!joinResponse.success) {
+                        reject(joinResponse.message);
+                        return;
+                    }
+
+                    const state = selectStateSnapshot(
+                        (state) => state.application.exerciseState,
+                        this.store
+                    );
+
+                    if (!state) {
+                        reject('Der Übungszustand konnte nicht geladen werden');
+                        return;
+                    }
+
+                    const getStateDiffResponse = await new Promise<
+                        SocketResponse<ExerciseAction[]>
+                    >((resolve) => {
+                        this.socket.emit(
+                            'getStateDiff',
+                            state.appliedActionCount,
+                            resolve
+                        );
+                    });
+                    if (!getStateDiffResponse.success) {
+                        reject(getStateDiffResponse.message);
+                        return;
+                    }
+
+                    freeze(getStateDiffResponse.payload, true);
+                    getStateDiffResponse.payload.forEach((action) => {
+                        this.store.dispatch(
+                            createApplyServerActionAction(action)
+                        );
+                    });
+
+                    this.store.dispatch(
+                        createJoinExerciseAction(
+                            joinResponse.payload,
+                            selectStateSnapshot(
+                                (state) => state.application.exerciseState,
+                                this.store
+                            )!,
+                            exerciseId,
+                            lastClientName
+                        )
+                    );
+                    this.initializeSocket();
+                    resolve();
+                });
+                return;
+            } catch (e: unknown) {
+                if (e) {
+                    this.messageService.postError({
+                        title: 'Fehler beim Beitreten der Übung',
+                        error: e,
+                    });
+                }
+            }
+        }
+
+        this.messageService.postError({
+            title: 'Fehler beim Beitreten der Übung',
+            error: 'Es konnte kein Server erreicht werden',
+        });
+    }
+
     private initializeSocket() {
         this.data?.connections.push({
             start: Date.now() - this.data.start,
@@ -159,7 +281,7 @@ export class ExerciseService {
             if (id) {
                 const payload = this.data?.payloads.find((p) => p.id === id);
                 if (payload) {
-                    payload.recieved = Date.now() - this.data!.start;
+                    payload.received = Date.now() - this.data!.start;
                 }
             }
 
@@ -171,9 +293,10 @@ export class ExerciseService {
             }
 
             if (action.type === '[Exercise] Tick') {
-                this.data?.running
-                    .at(-1)
-                    ?.ticks.push(Date.now() - this.data.start);
+                this.data?.running.at(-1)?.ticks.push({
+                    at: Date.now() - this.data.start,
+                    leader: action.leaderId,
+                });
             }
 
             if (action.type === '[Exercise] Pause') {
@@ -194,115 +317,8 @@ export class ExerciseService {
                 this.data.connections.at(-1)!.end =
                     Date.now() - this.data.start;
             }
-
-            const { exerciseId, ownClientId, lastClientName } =
-                selectStateSnapshot((state) => state.application, this.store);
-
-            this.socket.off('performAction');
-            this.socket.off('disconnect');
-            this.socket.disconnect();
-
             this.originService.resetOrigins();
-            // eslint-disable-next-line no-await-in-loop
-            while (!(await this.apiSerivce.checkHealth())) {
-                if (!this.originService.newOrigin()) {
-                    this.messageService.postError(
-                        {
-                            title: 'Es konnte kein Server gefunden werden',
-                            body: 'Bitte versuchen Sie es später erneut, indem Sie die Seite neu laden',
-                            error: reason,
-                        },
-                        'alert',
-                        null
-                    );
-                    return;
-                }
-            }
-
-            this.socket = io(this.originService.wsOrigin, {
-                ...socketIoTransports,
-            });
-            this.socket.connect().on('connect_error', (error) => {
-                this.messageService.postError({
-                    title: 'Fehler beim Verbinden zum Server',
-                    error,
-                });
-            });
-            if (exerciseId !== undefined && lastClientName !== undefined) {
-                const joinResponse = await new Promise<SocketResponse<UUID>>(
-                    (resolve) => {
-                        this.socket.emit(
-                            'joinExercise',
-                            exerciseId,
-                            lastClientName,
-                            ownClientId,
-                            resolve
-                        );
-                    }
-                );
-                if (!joinResponse.success) {
-                    this.messageService.postError({
-                        title: 'Fehler beim Beitreten der Übung',
-                        error: joinResponse.message,
-                    });
-                    return;
-                }
-
-                try {
-                    await new Promise<void>((resolve, reject) => {
-                        const state = selectStateSnapshot(
-                            (state) => state.application.exerciseState,
-                            this.store
-                        );
-                        if (!state) {
-                            reject(
-                                'Der Übungszustand konnte nicht geladen werden'
-                            );
-                            return;
-                        }
-                        this.socket.emit(
-                            'getStateDiff',
-                            state.appliedActionCount,
-                            (response) => {
-                                if (!response.success) {
-                                    reject(response.message);
-                                    return;
-                                }
-
-                                freeze(response.payload, true);
-                                response.payload.forEach((action) => {
-                                    this.store.dispatch(
-                                        createApplyServerActionAction(action)
-                                    );
-                                });
-                                resolve();
-                            }
-                        );
-                    });
-                } catch (error: any) {
-                    if (isString(error)) {
-                        this.messageService.postError({
-                            title: 'Fehler beim Laden des Übungszustands',
-                            error,
-                        });
-                        return;
-                    }
-                    throw error;
-                }
-
-                this.store.dispatch(
-                    createJoinExerciseAction(
-                        joinResponse.payload,
-                        selectStateSnapshot(
-                            (state) => state.application.exerciseState,
-                            this.store
-                        )!,
-                        exerciseId,
-                        lastClientName
-                    )
-                );
-            }
-            this.initializeSocket();
+            this.rejoinExercise();
         });
     }
 
@@ -315,7 +331,7 @@ export class ExerciseService {
      */
     public async joinExercise(
         exerciseId: string,
-        clientName: string
+        clientName: string,
     ): Promise<boolean> {
         this.socket.connect().on('connect_error', (error) => {
             this.messageService.postError({
@@ -329,6 +345,7 @@ export class ExerciseService {
                     'joinExercise',
                     exerciseId,
                     clientName,
+                    undefined,
                     undefined,
                     resolve
                 );
@@ -414,7 +431,11 @@ export class ExerciseService {
      * @param optimistic wether the action should be applied before the server responds (to reduce latency) (this update is guaranteed to be synchronous)
      * @returns the response of the server
      */
-    public async proposeAction(action: ExerciseAction, optimistic: boolean = false, id: UUID | undefined = undefined) {
+    public async proposeAction(
+        action: ExerciseAction,
+        optimistic: boolean = false,
+        id: UUID | undefined = undefined
+    ) {
         if (
             selectStateSnapshot(selectExerciseStateMode, this.store) !==
                 'exercise' ||
@@ -429,7 +450,12 @@ export class ExerciseService {
         }
 
         // TODO: throw if `response.success` is false
-        return this.optimisticActionHandler.proposeAction(action, id, optimistic);
+        return Promise.race([
+            this.optimisticActionHandler.proposeAction(action, id, optimistic),
+            new Promise<SocketResponse>((_resolve, reject) => {
+                setTimeout(() => reject('timeout'), 10_000);
+            }),
+        ]);
     }
 
     private readonly stopNotifications$ = new Subject<void>();

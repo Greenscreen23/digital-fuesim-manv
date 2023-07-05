@@ -8,6 +8,7 @@ import {
     getElement,
     healthPointsDefaults,
     Patient,
+    sleep,
 } from 'digital-fuesim-manv-shared';
 
 /**
@@ -21,36 +22,46 @@ type Catering = { [key in PersonnelType | 'material']: number };
  * @param patientTickInterval The interval in ms between calls to this function
  * @returns An array of {@link PatientUpdate}s to apply to the {@link state} in a reducer
  */
-export function patientTick(
+export async function patientTick(
     state: ExerciseState,
     patientTickInterval: number
-): PatientUpdate[] {
-    return Object.values(state.patients)
-        .filter((patient) => Patient.canBeTreated(patient))
-        .map((patient) => {
-            // update the time a patient is being treated, to check for pretriage later
-            const treatmentTime = Patient.isTreatedByPersonnel(patient)
-                ? patient.treatmentTime + patientTickInterval
-                : patient.treatmentTime;
-            const nextHealthPoints = getNextPatientHealthPoints(
-                patient,
-                getDedicatedResources(state, patient),
-                patientTickInterval
-            );
-            const nextStateId = getNextStateId(patient);
-            const nextStateTime =
-                nextStateId === patient.currentHealthStateId
-                    ? patient.stateTime +
-                      patientTickInterval * patient.timeSpeed
-                    : 0;
-            return {
-                id: patient.id,
-                nextHealthPoints,
-                nextStateId,
-                nextStateTime,
-                treatmentTime,
-            };
-        });
+): Promise<PatientUpdate[]> {
+    let count = 0;
+    return Promise.all(
+        Object.values(state.patients)
+            .filter((patient) => Patient.canBeTreated(patient))
+            .map(async (patient) => {
+                // don't block the main thread
+                count++;
+                if (count === 100) {
+                    count = 0;
+                    await sleep(0);
+                }
+
+                // update the time a patient is being treated, to check for pretriage later
+                const treatmentTime = Patient.isTreatedByPersonnel(patient)
+                    ? patient.treatmentTime + patientTickInterval
+                    : patient.treatmentTime;
+                const nextHealthPoints = getNextPatientHealthPoints(
+                    patient,
+                    getDedicatedResources(state, patient),
+                    patientTickInterval
+                );
+                const nextStateId = getNextStateId(patient);
+                const nextStateTime =
+                    nextStateId === patient.currentHealthStateId
+                        ? patient.stateTime +
+                          patientTickInterval * patient.timeSpeed
+                        : 0;
+                return {
+                    id: patient.id,
+                    nextHealthPoints,
+                    nextStateId,
+                    nextStateTime,
+                    treatmentTime,
+                };
+            })
+    );
 }
 
 /**

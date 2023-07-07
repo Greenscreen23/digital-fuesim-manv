@@ -21,7 +21,7 @@ import { ExerciseWrapper } from './exercise-wrapper';
 import { Buffer } from 'node:buffer';
 import { ClientWrapper } from './client-wrapper';
 
-export class ExerciseStateMachine extends raft.api.StateMachineBase {
+export class ExerciseStateMachine {
     exerciseMap = new Map<string, ExerciseWrapper>();
     promises = new Map<
         Buffer | string,
@@ -33,29 +33,24 @@ export class ExerciseStateMachine extends raft.api.StateMachineBase {
 
     constructor(
         private readonly databaseService: DatabaseService,
-        exercises: ExerciseWrapper[],
+        exercises: ExerciseWrapper[]
     ) {
-        super();
         exercises.forEach((exercise) => {
             this.exerciseMap.set(exercise.participantId, exercise);
             this.exerciseMap.set(exercise.trainerId, exercise);
         });
         UserReadableIdGenerator.lock([...this.exerciseMap.keys()]);
-
-        (this as any)[Symbol.for('setReady')]();
     }
 
-    override close() {
-        return super.close();
-    }
+    close() {}
 
-    override applyEntries(
+    applyEntries(
         entries: Buffer[],
         nextIndex: number,
         currentTerm: number,
         snapshot?: raft.common.SnapshotFile
     ) {
-        entries.forEach((entry) => {
+        entries.forEach(async (entry) => {
             if (
                 raft.common.LogEntry.readers.readTypeOf(entry) ===
                 raft.common.LogEntry.LOG_ENTRY_TYPE_STATE
@@ -69,10 +64,13 @@ export class ExerciseStateMachine extends raft.api.StateMachineBase {
                 ) as ExerciseRaftAction;
                 switch (action.type) {
                     case 'addExerciseRaftAction':
-                        this.addExercise(action, this.promises.get(id));
+                        await this.addExercise(action, this.promises.get(id));
                         break;
                     case 'removeExerciseRaftAction':
-                        this.removeExercise(action, this.promises.get(id));
+                        await this.removeExercise(
+                            action,
+                            this.promises.get(id)
+                        );
                         break;
                     case 'proposeExerciseActionRaftAction':
                         this.applyAction(action, this.promises.get(id));
@@ -86,7 +84,6 @@ export class ExerciseStateMachine extends raft.api.StateMachineBase {
                 this.promises.delete(id);
             }
         });
-        return super.applyEntries(entries, nextIndex, currentTerm, snapshot);
     }
 
     tickAllExercises(

@@ -213,7 +213,7 @@ export class ExerciseWrapper extends NormalType<
         leaderId: string
     ) => {
         try {
-            const patientUpdates = await patientTick(
+            const patientUpdates = patientTick(
                 this.getStateSnapshot(),
                 tickInterval
             );

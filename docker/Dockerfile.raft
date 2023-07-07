@@ -1,0 +1,35 @@
+ARG DEVELOPMENT_PATH="/usr/local/app"
+
+FROM node:18-bullseye-slim
+ARG DEVELOPMENT_PATH
+
+RUN apt update && apt upgrade -y && apt install -y python3 build-essential
+
+COPY ["./node-zmq-raft/package.json", "./node-zmq-raft/package-lock.json", "$DEVELOPMENT_PATH/node-zmq-raft/"]
+WORKDIR $DEVELOPMENT_PATH/node-zmq-raft
+RUN npm i
+
+COPY ["./shared/package.json", "./shared/package-lock.json", "./shared/.npmrc", "$DEVELOPMENT_PATH/shared/"]
+WORKDIR $DEVELOPMENT_PATH/shared
+RUN npm i
+
+COPY ["./raft/package.json", "./raft/package-lock.json", "./raft/.npmrc", "$DEVELOPMENT_PATH/raft/"]
+WORKDIR $DEVELOPMENT_PATH/raft
+RUN npm i
+
+COPY ./tsconfig.base.json $DEVELOPMENT_PATH/
+
+COPY ./shared $DEVELOPMENT_PATH/shared
+WORKDIR $DEVELOPMENT_PATH/shared
+RUN npm run build
+
+COPY ./node-zmq-raft $DEVELOPMENT_PATH/node-zmq-raft
+
+COPY ./raft $DEVELOPMENT_PATH/raft
+WORKDIR $DEVELOPMENT_PATH/raft
+RUN npm run build
+
+COPY ./docker/docker-entrypoint.raft.sh /docker-entrypoint.raft.sh
+RUN chmod +x /docker-entrypoint.raft.sh
+
+CMD [ "/bin/bash", "-c", "/docker-entrypoint.raft.sh" ]

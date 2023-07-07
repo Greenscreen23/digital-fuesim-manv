@@ -111,13 +111,7 @@ export namespace ExerciseActionReducers {
             draftState.currentTime += tickInterval;
 
             // Refresh patient status
-            let count = 0;
-            patientUpdates.forEach(async (patientUpdate) => {
-                count++;
-                if (count === 100) {
-                    count = 0;
-                    await sleep(0);
-                }
+            patientUpdates.forEach((patientUpdate) => {
                 const currentPatient = draftState.patients[patientUpdate.id]!;
 
                 const visibleStatusBefore = Patient.getVisibleStatus(

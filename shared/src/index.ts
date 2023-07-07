@@ -29,3 +29,4 @@ export * from './state-helpers';
 export * from './data';
 export * from './store/action-reducers/utils';
 export * from './state-migrations';
+export * from './periodic-events/periodic-event-handler';

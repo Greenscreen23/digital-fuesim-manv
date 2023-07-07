@@ -1,5 +1,6 @@
 {
     "id": "raft1",
+    "dfmUrl": "ws://dfm1:5431",
     "secret": "",
     "peers": [
         { "id": "raft1", "url": "tcp://172.16.238.101:8047" },

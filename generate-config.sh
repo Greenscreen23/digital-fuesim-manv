@@ -37,20 +37,38 @@ services:
             - 4201:4200
             - 3301:3201
             - 3201:3200
-            - 8501:8501
         env_file:
             - .env
         volumes:
             - $RAFT_CONFIG_FOLDER/raft-1.json:/usr/local/app/raft.json
         networks:
             raft:
+                ipv4_address: 172.16.238.111
+        cpuset: \"0-$((NUM_CPUS - 1))\"
+    raft1:
+        image: digital-fuesim-manv-raft-backend
+        build:
+            context: .
+            dockerfile: docker/Dockerfile.raft
+        restart: unless-stopped
+        container_name: digital-fuesim-manv-raft-backend-1
+        environment:
+            - RAFT_CONFIG_PATH=/usr/local/app/raft.json
+            - DEBUG=zmq-raft:*
+        ports:
+            - 8501:8501
+        volumes:
+            - $RAFT_CONFIG_FOLDER/raft-1.json:/usr/local/app/raft.json
+        networks:
+            raft:
                 ipv4_address: 172.16.238.101
-        cpuset: \"0-$((NUM_CPUS - 1))\""> $DOCKER_COMPOSE_FILE
+        cpuset: \"0-$((NUM_CPUS - 1))\"" > $DOCKER_COMPOSE_FILE
 
 for index in $(seq 2 $NUM_CONFIGS)
 do
     padded_index=$(printf "%02d" $index)
     printf "
+
     dfm$index:
         image: digital-fuesim-manv-dfm-raft
         restart: unless-stopped
@@ -63,9 +81,23 @@ do
             - 42$padded_index:4200
             - 33$padded_index:3201
             - 32$padded_index:3200
-            - 85$padded_index:85$padded_index
         env_file:
             - .env
+        volumes:
+            - $RAFT_CONFIG_FOLDER/raft-$index.json:/usr/local/app/raft.json
+        networks:
+            raft:
+                ipv4_address: 172.16.238.$((index + 10))
+        cpuset: \"0-$((NUM_CPUS - 1))\"
+    raft$index:
+        image: digital-fuesim-manv-raft-backend
+        restart: unless-stopped
+        container_name: digital-fuesim-manv-raft-backend-$index
+        environment:
+            - RAFT_CONFIG_PATH=/usr/local/app/raft.json
+            - DEBUG=zmq-raft:*
+        ports:
+            - 85$padded_index:85$padded_index
         volumes:
             - $RAFT_CONFIG_FOLDER/raft-$index.json:/usr/local/app/raft.json
         networks:
@@ -91,6 +123,7 @@ do
     padded_index=$(printf "%02d" $index)
     printf "{
     \"id\": \"raft$index\",
+    \"dfmUrl\": \"ws://dfm$index:5431\",
     \"secret\": \"\",
     \"peers\": [
         $PEERS

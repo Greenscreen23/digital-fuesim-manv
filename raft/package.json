@@ -1,0 +1,32 @@
+{
+    "name": "digital-fuesim-manv-raft",
+    "version": "0.7.0",
+    "type": "module",
+    "scripts": {
+        "build": "tsc --project ./tsconfig.build.json"
+    },
+    "private": true,
+    "engines": {
+        "node": ">=18",
+        "npm": ">=8"
+    },
+    "dependencies": {
+        "msgpack-lite": "^0.1.26",
+        "node-zmq-raft": "file:../node-zmq-raft",
+        "digital-fuesim-manv-shared": "file:../shared",
+        "socket.io-client": "^4.6.1"
+    },
+    "devDependencies": {
+        "@types/msgpack-lite": "^0.1.8",
+        "@types/node": "^16",
+        "@typescript-eslint/eslint-plugin": "5.48.1",
+        "@typescript-eslint/parser": "5.48.1",
+        "eslint": "^8.31.0",
+        "eslint-config-prettier": "^8.6.0",
+        "eslint-plugin-import": "~2.27.4",
+        "eslint-plugin-unicorn": "^45.0.2",
+        "nodemon": "^2.0.20",
+        "ts-node": "^10.9.1",
+        "typescript": "~4.9.4"
+    }
+}

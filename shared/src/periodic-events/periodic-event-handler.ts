@@ -2,7 +2,7 @@
  * Makes sure that a periodic {@link tick} function is executed every {@link interval}.
  */
 export class PeriodicEventHandler {
-    private currentTimeout?: NodeJS.Timeout;
+    private currentTimeout?: unknown;
     // Needed in addition to currentTimeout because tick is asynchronous and there is no timeout during its execution.
     private isPaused = false;
     /**
@@ -25,7 +25,7 @@ export class PeriodicEventHandler {
     public pause() {
         this.isPaused = true;
         if (this.currentTimeout) {
-            clearTimeout(this.currentTimeout);
+            clearTimeout(this.currentTimeout as any);
             this.currentTimeout = undefined;
         }
     }

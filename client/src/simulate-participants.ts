@@ -1,11 +1,10 @@
-import type { Store } from '@ngrx/store';
-import type {
+import {
     ExerciseAction,
-    ExerciseState,
     Position,
     UUID,
     Vehicle,
     Viewport,
+    WithPosition,
 } from 'digital-fuesim-manv-shared';
 import {
     defaultPatientCategories,
@@ -17,25 +16,11 @@ import {
     currentCoordinatesOf,
     MapPosition,
     uuid,
+    isOnMap,
 } from 'digital-fuesim-manv-shared';
-import { Subject, takeUntil } from 'rxjs';
-import { AppState } from '../state/app.state';
-import {
-    selectConfiguration,
-    selectExerciseStatus,
-    selectMaterialTemplates,
-    selectMaterials,
-    selectPersonnel,
-    selectPersonnelTemplates,
-} from '../state/application/selectors/exercise.selectors';
-import { selectStateSnapshot } from '../state/get-state-snapshot';
-import {
-    selectRestrictedViewport,
-    selectVisibleMaterials,
-    selectVisiblePatients,
-    selectVisiblePersonnel,
-    selectVisibleVehicles,
-} from '../state/application/selectors/shared.selectors';
+import { Subject } from 'rxjs';
+import { Store } from 'store.service';
+import { pickBy } from 'lodash-es';
 
 /**
  * Simulates a participant in the viewport the client is currently restricted to
@@ -44,29 +29,49 @@ export class SimulatedParticipant {
     private readonly destroy$ = new Subject<void>();
 
     constructor(
-        private readonly store: Store<AppState>,
+        private readonly store: Store,
         private readonly proposeAction: (
             action: ExerciseAction,
             optimistic?: boolean
-        ) => Promise<unknown>
+        ) => Promise<unknown>,
+        private readonly amountInViewport: {
+            vehicles: number;
+            unloadedVehicles: number;
+            patients: number;
+        }
     ) {}
 
     private tickInterval?: any;
-    private readonly amountInViewport = {
-        vehicles: selectStateSnapshot(selectConfiguration, this.store)
-            .numberOfVehicles,
-        unloadedVehicles: selectStateSnapshot(selectConfiguration, this.store)
-            .numberOfVehicles,
-        patients: selectStateSnapshot(selectConfiguration, this.store)
-            .numberOfPatients,
-    };
-
-    // in ms
-    private readonly simulationTime =
-        selectStateSnapshot(selectConfiguration, this.store).testDuration *
-        1000;
 
     public async prepareSimulation() {
+        const id = Number(process.env['ID']);
+
+        const y = 6871497.363370008;
+        const xBase = 1461493.8377002398;
+        const xDiff = Math.abs(1461493.8377002398 - 1461712.8590994477);
+
+        const viewPortId = uuid();
+        await this.proposeAction({
+            type: '[Viewport] Add viewport',
+            viewport: {
+                id: viewPortId,
+                type: 'viewport',
+                position: MapPosition.create(
+                    MapCoordinates.create(xBase + xDiff * id, y)
+                ),
+                size: {
+                    height: 76.59574468085107,
+                    width: 136.17021276595744,
+                },
+                name: `Viewport ${id}`,
+            },
+        });
+        await this.proposeAction({
+            type: '[Client] Restrict to viewport',
+            clientId: this.store.ownClientId,
+            viewportId: viewPortId,
+        });
+
         console.log(`${Date()}: simulation gets prepared`);
         // make sure there are at least x vehicles in the viewport
         for (
@@ -148,39 +153,27 @@ export class SimulatedParticipant {
         }
         console.log(`${Date()}: all Patients moved once`);
 
-        console.log(
-            `${Date()}: letting exercise simulation run for ${
-                this.simulationTime / 60 / 1000
-            } minutes`
+        process.send!('ready');
+
+        await new Promise<void>((resolve) =>
+            process.on('message', (msg: any) => {
+                if (msg.type === 'start') {
+                    resolve();
+                }
+            })
         );
 
-        // starting exercise (and with it, the tick)
-        if (selectStateSnapshot(selectExerciseStatus, this.store) !== 'running')
-            await this.proposeAction({
-                type: '[Exercise] Start',
-            });
-
-        // every second: check whether you should move a random vehicle, personnel, patient or material
         this.tickInterval = setTimeout(() => {
             this.tick();
         }, 1000);
 
-        await new Promise((resolve) =>
-            setTimeout(resolve, this.simulationTime)
-        );
-
-        this.stopSimulation();
-        console.log(`${Date()}: simulation stopped`);
-        if (
-            selectStateSnapshot(selectExerciseStatus, this.store) === 'running'
-        ) {
-            await this.proposeAction({
-                type: '[Exercise] Pause',
+        await new Promise<void>((resolve) => {
+            process.on('message', (msg: any) => {
+                if (msg.type === 'stop') {
+                    resolve();
+                }
             });
-            console.log(`${Date()}: and tick paused, too`);
-        } else {
-            console.log(`${Date()}: tick was already paused`);
-        }
+        });
     }
 
     public stopSimulation() {
@@ -199,13 +192,10 @@ export class SimulatedParticipant {
             category.name,
             MapPosition.create(this.getRandomPosition())
         );
-        return this.proposeAction(
-            {
-                type: '[Patient] Add patient',
-                patient,
-            },
-            false
-        );
+        return this.proposeAction({
+            type: '[Patient] Add patient',
+            patient,
+        });
     }
 
     private async createVehicle() {
@@ -215,8 +205,8 @@ export class SimulatedParticipant {
                 ...createVehicleParameters(
                     uuid(),
                     defaultVehicleTemplates[0]!,
-                    selectStateSnapshot(selectMaterialTemplates, this.store),
-                    selectStateSnapshot(selectPersonnelTemplates, this.store),
+                    this.store.state.materialTemplates,
+                    this.store.state.personnelTemplates,
                     this.getRandomPosition()
                 ),
             },
@@ -225,7 +215,11 @@ export class SimulatedParticipant {
     }
 
     private getCurrentViewport(): Viewport {
-        return selectStateSnapshot(selectRestrictedViewport, this.store)!;
+        const ownClientId = this.store.ownClientId;
+        const ownClient = this.store.state.clients[ownClientId]!;
+        const ownViewport =
+            this.store.state.viewports[ownClient.viewRestrictedToViewportId!]!;
+        return ownViewport;
     }
 
     private getRandomPosition(): MapCoordinates {
@@ -301,25 +295,39 @@ export class SimulatedParticipant {
         return elements[Math.floor(Math.random() * elements.length)]!;
     }
 
+    private visible<T extends WithPosition>(elements: {
+        [key: UUID]: T;
+    }): { [key: UUID]: T } {
+        const viewport = this.getCurrentViewport();
+        return pickBy(
+            elements,
+            (element) =>
+                // Is placed on the map
+                isOnMap(element) &&
+                // No viewport restriction
+                Viewport.isInViewport(viewport, currentCoordinatesOf(element))
+        );
+    }
+
     private getVisibleVehicles() {
-        return selectStateSnapshot(selectVisibleVehicles, this.store);
+        return this.visible(this.store.state.vehicles);
     }
 
     private getVisiblePatients() {
-        return selectStateSnapshot(selectVisiblePatients, this.store);
+        return this.visible(this.store.state.patients);
     }
 
     private getVisibleMaterials() {
-        return selectStateSnapshot(selectVisibleMaterials, this.store);
+        return this.visible(this.store.state.materials);
     }
 
     private getVisiblePersonnel() {
-        return selectStateSnapshot(selectVisiblePersonnel, this.store);
+        return this.visible(this.store.state.personnel);
     }
 
     private vehicleIsUnloaded(vehicle: Vehicle) {
-        const material = selectStateSnapshot(selectMaterials, this.store);
-        const personnel = selectStateSnapshot(selectPersonnel, this.store);
+        const material = this.store.state.materials;
+        const personnel = this.store.state.personnel;
         return (
             Object.keys(vehicle.materialIds).every(
                 (materialId) =>

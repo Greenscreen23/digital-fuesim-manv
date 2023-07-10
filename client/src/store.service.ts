@@ -5,6 +5,7 @@ import {
     ReducerError,
     reduceExerciseState,
 } from 'digital-fuesim-manv-shared';
+import { OriginService } from './origin.service';
 
 export class Store {
     public _state?: Immutable<ExerciseState>;
@@ -12,17 +13,15 @@ export class Store {
     public _exerciseId?: string;
     public _lastClientName?: string;
 
-    constructor() {}
+    constructor(private readonly originService: OriginService) {}
 
     public applyServerAction(serverAction: ExerciseAction) {
-
         try {
             this.state = reduceExerciseState(this.state, serverAction);
         } catch (error: any) {
             if (error instanceof ReducerError) {
                 console.warn(
-                    `Error while applying server action: ${error.message} \n
-                            This is expected if an optimistic update has been applied.`
+                    process.env['ID'], ': Error applying action:', error, ' while connected to ', this.originService.wsOrigin
                 );
                 // If the reducer throws an error (which is expected due to optimistic updates), we don't change the state
                 return;

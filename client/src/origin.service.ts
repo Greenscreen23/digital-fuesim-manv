@@ -11,7 +11,6 @@ export class OriginService {
     private currentOrigins: { [key: UUID]: Origin } = {};
 
     constructor(wsOrigin: string, httpOrigin: string) {
-        const id = window.location.port.slice(2);
         this.allOrigins[uuid()] = {
             ws: wsOrigin,
             http: httpOrigin,

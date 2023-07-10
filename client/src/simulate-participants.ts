@@ -19,7 +19,7 @@ import {
     isOnMap,
 } from 'digital-fuesim-manv-shared';
 import { Subject } from 'rxjs';
-import { Store } from 'store.service';
+import { Store } from './store.service';
 import { pickBy } from 'lodash-es';
 
 /**
@@ -65,14 +65,26 @@ export class SimulatedParticipant {
                 },
                 name: `Viewport ${id}`,
             },
-        });
+        }, false);
         await this.proposeAction({
             type: '[Client] Restrict to viewport',
             clientId: this.store.ownClientId,
             viewportId: viewPortId,
-        });
+        }, false);
 
-        console.log(`${Date()}: simulation gets prepared`);
+        const prepPromise = new Promise<void>((resolve) => {
+            process.on('message', (msg: any) => {
+                if (msg.type === 'prepare') {
+                    resolve();
+                }
+            })
+        })
+
+        process.send!({ type: 'joined' })
+
+        await prepPromise;
+
+        console.log(`${id}: simulation gets prepared`);
         // make sure there are at least x vehicles in the viewport
         for (
             let i = Object.keys(this.getVisibleVehicles()).length;
@@ -82,7 +94,7 @@ export class SimulatedParticipant {
             // eslint-disable-next-line no-await-in-loop
             await this.createVehicle();
         }
-        console.log(`${Date()}: all vehicles created`);
+        console.log(`${id}: all vehicles created`);
         // Unload x vehicles in the viewport
         const vehiclesInViewport = Object.values(this.getVisibleVehicles());
         const numberOfUnloadedVehicles = vehiclesInViewport.filter((_vehicle) =>
@@ -102,7 +114,7 @@ export class SimulatedParticipant {
                 vehicleId: vehicle.id,
             });
         }
-        console.log(`${Date()}: all vehicles unloaded`);
+        console.log(`${id}: all vehicles unloaded`);
         // make sure there are at least x patients in the viewport
         for (
             let i = Object.keys(this.getVisiblePatients()).length;
@@ -112,7 +124,7 @@ export class SimulatedParticipant {
             // eslint-disable-next-line no-await-in-loop
             await this.createPatient();
         }
-        console.log(`${Date()}: all Patients created`);
+        console.log(`${id}: all Patients created`);
 
         for (const personnelInViewport of Object.values(
             this.getVisiblePersonnel()
@@ -125,7 +137,7 @@ export class SimulatedParticipant {
                 targetPosition: this.getRandomPosition(),
             });
         }
-        console.log(`${Date()}: all Personnel moved once`);
+        console.log(`${id}: all Personnel moved once`);
 
         for (const materialInViewport of Object.values(
             this.getVisibleMaterials()
@@ -138,7 +150,7 @@ export class SimulatedParticipant {
                 targetPosition: this.getRandomPosition(),
             });
         }
-        console.log(`${Date()}: all Material moved once`);
+        console.log(`${id}: all Material moved once`);
 
         for (const patientsInViewport of Object.values(
             this.getVisiblePatients()
@@ -151,17 +163,19 @@ export class SimulatedParticipant {
                 targetPosition: this.getRandomPosition(),
             });
         }
-        console.log(`${Date()}: all Patients moved once`);
+        console.log(`${id}: all Patients moved once`);
 
-        process.send!('ready');
-
-        await new Promise<void>((resolve) =>
+        const startProm = new Promise<void>((resolve) =>
             process.on('message', (msg: any) => {
                 if (msg.type === 'start') {
                     resolve();
                 }
             })
         );
+
+        process.send!({ type: 'ready' });
+
+        await startProm;
 
         this.tickInterval = setTimeout(() => {
             this.tick();

@@ -17,8 +17,8 @@ export class OriginService {
     constructor() {
         const id = window.location.port.slice(2);
         this.allOrigins[uuid()] = {
-            ws: `ws://fb14srv6.hpi.uni-potsdam.de:3201`,
-            http: `http://fb14srv6.hpi.uni-potsdam.de:3301`,
+            ws: `ws://fb14srv6.hpi.uni-potsdam.de:32${id}`,
+            http: `http://fb14srv6.hpi.uni-potsdam.de:33${id}`,
         };
         this.resetOrigins();
         this.currentOriginId = Object.keys(this.currentOrigins)[0]!;

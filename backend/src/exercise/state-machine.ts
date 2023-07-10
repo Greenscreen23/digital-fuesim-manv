@@ -215,9 +215,10 @@ export class ExerciseStateMachine {
                         expected: false,
                     });
                 }
-                return;
+                console.warn('got reducer error:', error)
             }
             console.log(error);
+            return;
         }
 
         promise?.resolve();

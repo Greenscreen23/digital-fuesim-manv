@@ -1,11 +1,13 @@
 import cluster from 'node:cluster';
 import { OriginService } from './origin.service';
 import { Store } from './store.service';
-import { ApiService } from 'api.service';
-import { ExerciseService } from 'exercise.service';
+import { ApiService } from './api.service';
+import { ExerciseService } from './exercise.service';
+import fs from 'node:fs';
 
 async function main() {
-    const workers = Number(process.env['WORKER']);
+    const start = Date.now()
+    const workers = Number(process.env['WORKERS']);
     const vehicles = Number(process.env['VEHICLES']);
     const patients = Number(process.env['PATIENTS']);
     const wsOrigin = process.env['WS_ORIGIN']!;
@@ -15,40 +17,23 @@ async function main() {
 
     // Dependency injection, the easy way
     const originService = new OriginService(wsOrigin, httpOrigin);
-    const store = new Store();
+    const store = new Store(originService);
     const apiService = new ApiService(originService, store);
     const exerciseService = new ExerciseService(
         store,
         originService,
         apiService,
         {
-            vehicles,
-            unloadedVehicles: vehicles,
-            patients,
+            vehicles: vehicles / workers,
+            unloadedVehicles: vehicles / workers,
+            patients: patients / workers,
         }
     );
 
     if (cluster.isPrimary) {
         const ids = await apiService.createExercise();
+        console.log('exercise ids:', ids)
         await exerciseService.joinExercise(ids.trainerId, 'trainer');
-
-        for (let i = 0; i < workers; i++) {
-            const worker = cluster.fork({ ID: i, EXERCISE_ID: ids.trainerId });
-        }
-
-        Object.values(cluster.workers ?? {}).forEach((worker) => {
-            worker?.on('message', (msg) => {
-                if (msg.type === 'ready') {
-                    workersReady++;
-
-                    if (workersReady === workers) {
-                        console.log('All workers ready, starting exercise');
-
-                        runExercise(exerciseService);
-                    }
-                }
-            });
-        });
 
         cluster.on('exit', (worker, code, signal) => {
             console.log(
@@ -58,12 +43,42 @@ async function main() {
                 signal
             );
         });
+
+        for (let i = 0; i < workers; i++) {
+            await new Promise<void>((resolve) => {
+                cluster.fork({ ID: i, EXERCISE_ID: ids.trainerId, START: start }).on('message', (msg) => {
+                    if (msg.type === 'ready') {
+                        workersReady++;
+
+                        if (workersReady === workers) {
+                            console.log('All workers ready, starting exercise');
+
+                            runExercise(exerciseService);
+                        }
+                    }
+                    if (msg.type === 'joined') {
+                        resolve()
+                    }
+                });
+            })
+        }
+
+        Object.values(cluster.workers ?? {}).forEach((worker) => {
+            worker?.send({ type: 'prepare' });
+        });
+
     } else {
         const exerciseId = process.env['EXERCISE_ID']!;
+        const outdir = process.env['OUTDIR']!;
+        const id = process.env['ID']!;
 
-        await exerciseService.joinExercise(exerciseId, process.env['ID']!);
+        await exerciseService.joinExercise(exerciseId, id);
 
-        await exerciseService.benchmark();
+        const data = await exerciseService.benchmark();
+
+        fs.writeFileSync(`${outdir}/${id}.json`, JSON.stringify(data));
+
+        console.log(id, ': Done!')
     }
 }
 

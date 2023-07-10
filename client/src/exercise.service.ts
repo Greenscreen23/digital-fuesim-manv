@@ -1,4 +1,4 @@
-import { ApiService } from 'api.service';
+import { ApiService } from './api.service';
 import {
     ClientToServerEvents,
     ExerciseAction,
@@ -9,11 +9,11 @@ import {
     socketIoTransports,
     uuid,
 } from 'digital-fuesim-manv-shared';
-import { OptimisticActionHandler } from 'optimistic-action-handler';
-import { OriginService } from 'origin.service';
+import { OptimisticActionHandler } from './optimistic-action-handler';
+import { OriginService } from './origin.service';
 import { SimulatedParticipant } from './simulate-participants';
 import { Socket, io } from 'socket.io-client';
-import { Store } from 'store.service';
+import { Store } from './store.service';
 import { freeze } from 'immer';
 
 export class ExerciseService {
@@ -53,24 +53,29 @@ export class ExerciseService {
     };
 
     public async benchmark(): Promise<unknown> {
+        const start = Number(process.env['START'])
         this.data = {
             payloads: [],
             connections: [{ start: 0, origin: this.originService.wsOrigin }],
             running: [],
-            start: Date.now(),
+            start: start,
         };
         const puppet = new SimulatedParticipant(
             this.store,
             async (action, optimistic) => {
+                await new Promise((resolve) => setTimeout(resolve, 100))
                 const id = uuid();
                 this.data?.payloads.push({
                     id,
                     send: Date.now() - this.data.start,
                 });
-                try {
-                    await this.proposeAction(action, optimistic, id);
-                } catch (e: unknown) {
-                    console.error(e);
+                while (true) {
+                    try {
+                        await this.proposeAction(action, optimistic, id);
+                        break;
+                    } catch (e: unknown) {
+                        console.error(e);
+                    }
                 }
             },
             this.amountInViewport
@@ -83,18 +88,18 @@ export class ExerciseService {
     }
 
     private async rejoinExercise() {
+        const exerciseId = this.store.exerciseId;
+        const ownClientId = this.store.ownClientId;
+        const lastClientName = this.store.lastClientName;
+        const ownClient = this.store.state.clients[ownClientId]!;
+
+        this.socket.off('performAction');
+        this.socket.off('disconnect');
+        this.socket.disconnect();
         while (this.originService.newOrigin()) {
             try {
                 // eslint-disable-next-line no-await-in-loop, no-async-promise-executor, @typescript-eslint/no-loop-func
                 await new Promise<void>(async (resolve, reject) => {
-                    const exerciseId = this.store.exerciseId;
-                    const ownClientId = this.store.ownClientId;
-                    const lastClientName = this.store.lastClientName;
-                    const ownClient = this.store.state.clients[ownClientId]!;
-
-                    this.socket.off('performAction');
-                    this.socket.off('disconnect');
-                    this.socket.disconnect();
 
                     if (!(await this.apiSerivce.checkHealth())) {
                         reject('Server ist nicht erreichbar');
@@ -222,6 +227,8 @@ export class ExerciseService {
                 return;
             }
 
+            console.error('disconnected, reason:', reason)
+
             if (this.data?.connections.at(-1)) {
                 this.data.connections.at(-1)!.end =
                     Date.now() - this.data.start;
@@ -312,7 +319,7 @@ export class ExerciseService {
         id: UUID | undefined = undefined
     ) {
         if (!this.optimisticActionHandler) {
-            throw new Error('Not connected to an exercise');
+            throw new Error('No optimistic action handler!')
         }
         return Promise.race([
             this.optimisticActionHandler.proposeAction(action, id, optimistic),

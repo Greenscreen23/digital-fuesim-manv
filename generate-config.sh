@@ -22,6 +22,28 @@ networks:
             config:
                 - subnet: 172.16.238.0/24
 services:
+    client:
+        image: digital-fuesim-manv-dfm-client
+        build:
+            context: .
+            dockerfile: docker/Dockerfile.client
+        restart: unless-stopped
+        container_name: digital-fuesim-manv-client
+        environment:
+            - WORKERS=30
+            - VEHICLES=900
+            - PATIENTS=600
+            - WS_ORIGIN=ws://172.16.238.111:3200
+            - HTTP_ORIGIN=http://172.16.238.111:3201
+            - DURATION=3600000
+            - OUTDIR=/usr/local/app/data
+        volumes:
+            - ./data:/usr/local/app/data
+        networks:
+            raft:
+                ipv4_address: 172.16.238.250
+        cpuset: \"0-$((NUM_CPUS - 1))\"
+
     dfm1:
         image: digital-fuesim-manv-dfm-raft
         build:
@@ -32,7 +54,6 @@ services:
         environment:
             - DFM_USE_RAFT=true
             - DFM_RAFT_CONFIG_PATH=/usr/local/app/raft.json
-            - DEBUG=zmq-raft:*
         ports:
             - 4201:4200
             - 3301:3201
@@ -76,7 +97,6 @@ do
         environment:
             - DFM_USE_RAFT=true
             - DFM_RAFT_CONFIG_PATH=/usr/local/app/raft.json
-            - DEBUG=zmq-raft:*
         ports:
             - 42$padded_index:4200
             - 33$padded_index:3201
@@ -107,7 +127,7 @@ do
 done
 
 PEERS="{ \"id\": \"raft1\", \"url\": \"tcp://172.16.238.101:8047\" }"
-ORIGINS="{ \"ws\": \"ws://$HOST:3201\", \"http\": \"http://$HOST:3301\" }"
+ORIGINS="{ \"ws\": \"ws://172.16.238.111:3200\", \"http\": \"http://172.16.238.111:3201\" }"
 
 for index in $(seq 2 $NUM_CONFIGS)
 do
@@ -115,7 +135,7 @@ do
     PEERS="$PEERS,
         { \"id\": \"raft$index\", \"url\": \"tcp://172.16.238.$index:8047\" }"
     ORIGINS="$ORIGINS,
-        { \"ws\": \"ws://$HOST:32$padded_index\", \"http\": \"http://$HOST:33$padded_index\" }"
+        { \"ws\": \"ws://172.16.238.$((index + 10)):3200\", \"http\": \"http://172.16.238.$((index + 10)):3201\" }"
 done
 
 for index in $(seq 1 $NUM_CONFIGS)

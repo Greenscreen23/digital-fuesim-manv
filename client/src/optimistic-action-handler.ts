@@ -43,13 +43,15 @@ export class OptimisticActionHandler<
             action: Immutable<Action>,
             id: UUID | undefined
         ) => Promise<ServerResponse>
-    ) {}
+    ) {
+        this.serverState = this.getState();
+    }
 
     /**
      * The state that is confirmed to be valid by the server.
      * It is only assembled by the first `getState` and actions that came from the server via {@link performAction}
      */
-    private serverState = this.getState();
+    private serverState: Immutable<State>;
 
     /**
      * The actions that have already been optimistically applied to the state and have been send to the server

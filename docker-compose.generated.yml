@@ -1,12 +1,33 @@
 version: '3'
 networks:
-    default:
     raft:
         ipam:
             driver: default
             config:
                 - subnet: 172.16.238.0/24
 services:
+    client:
+        image: digital-fuesim-manv-dfm-client
+        build:
+            context: .
+            dockerfile: docker/Dockerfile.client
+        restart: unless-stopped
+        container_name: digital-fuesim-manv-client
+        environment:
+            - WORKERS=30
+            - VEHICLES=900
+            - PATIENTS=600
+            - WS_ORIGIN=ws://172.16.238.111:3200
+            - HTTP_ORIGIN=http://172.16.238.111:3201
+            - DURATION=3600000
+            - OUTDIR=/usr/local/app/data
+        volumes:
+            - ./data:/usr/local/app/data
+        networks:
+            raft:
+                ipv4_address: 172.16.238.250
+        cpuset: "6-19"
+
     dfm1:
         image: digital-fuesim-manv-dfm-raft
         build:
@@ -26,7 +47,8 @@ services:
         volumes:
             - ./config/raft-1.json:/usr/local/app/raft.json
         networks:
-            default:
+            raft:
+                ipv4_address: 172.16.238.111
         cpuset: "0-5"
     raft1:
         image: digital-fuesim-manv-raft-backend
@@ -43,7 +65,6 @@ services:
         volumes:
             - ./config/raft-1.json:/usr/local/app/raft.json
         networks:
-            default:
             raft:
                 ipv4_address: 172.16.238.101
         cpuset: "0-5"
@@ -55,7 +76,6 @@ services:
         environment:
             - DFM_USE_RAFT=true
             - DFM_RAFT_CONFIG_PATH=/usr/local/app/raft.json
-            - DEBUG=zmq-raft:*
         ports:
             - 4202:4200
             - 3302:3201
@@ -65,13 +85,11 @@ services:
         volumes:
             - ./config/raft-2.json:/usr/local/app/raft.json
         networks:
-            default:
+            raft:
+                ipv4_address: 172.16.238.12
         cpuset: "0-5"
     raft2:
         image: digital-fuesim-manv-raft-backend
-        build:
-            context: .
-            dockerfile: docker/Dockerfile.raft
         restart: unless-stopped
         container_name: digital-fuesim-manv-raft-backend-2
         environment:
@@ -82,7 +100,6 @@ services:
         volumes:
             - ./config/raft-2.json:/usr/local/app/raft.json
         networks:
-            default:
             raft:
                 ipv4_address: 172.16.238.2
         cpuset: "0-5"
@@ -94,7 +111,6 @@ services:
         environment:
             - DFM_USE_RAFT=true
             - DFM_RAFT_CONFIG_PATH=/usr/local/app/raft.json
-            - DEBUG=zmq-raft:*
         ports:
             - 4203:4200
             - 3303:3201
@@ -104,13 +120,11 @@ services:
         volumes:
             - ./config/raft-3.json:/usr/local/app/raft.json
         networks:
-            default:
+            raft:
+                ipv4_address: 172.16.238.13
         cpuset: "0-5"
     raft3:
         image: digital-fuesim-manv-raft-backend
-        build:
-            context: .
-            dockerfile: docker/Dockerfile.raft
         restart: unless-stopped
         container_name: digital-fuesim-manv-raft-backend-3
         environment:
@@ -121,7 +135,6 @@ services:
         volumes:
             - ./config/raft-3.json:/usr/local/app/raft.json
         networks:
-            default:
             raft:
                 ipv4_address: 172.16.238.3
         cpuset: "0-5"
@@ -133,7 +146,6 @@ services:
         environment:
             - DFM_USE_RAFT=true
             - DFM_RAFT_CONFIG_PATH=/usr/local/app/raft.json
-            - DEBUG=zmq-raft:*
         ports:
             - 4204:4200
             - 3304:3201
@@ -143,13 +155,11 @@ services:
         volumes:
             - ./config/raft-4.json:/usr/local/app/raft.json
         networks:
-            default:
+            raft:
+                ipv4_address: 172.16.238.14
         cpuset: "0-5"
     raft4:
         image: digital-fuesim-manv-raft-backend
-        build:
-            context: .
-            dockerfile: docker/Dockerfile.raft
         restart: unless-stopped
         container_name: digital-fuesim-manv-raft-backend-4
         environment:
@@ -160,7 +170,6 @@ services:
         volumes:
             - ./config/raft-4.json:/usr/local/app/raft.json
         networks:
-            default:
             raft:
                 ipv4_address: 172.16.238.4
         cpuset: "0-5"
@@ -172,7 +181,6 @@ services:
         environment:
             - DFM_USE_RAFT=true
             - DFM_RAFT_CONFIG_PATH=/usr/local/app/raft.json
-            - DEBUG=zmq-raft:*
         ports:
             - 4205:4200
             - 3305:3201
@@ -182,13 +190,11 @@ services:
         volumes:
             - ./config/raft-5.json:/usr/local/app/raft.json
         networks:
-            default:
+            raft:
+                ipv4_address: 172.16.238.15
         cpuset: "0-5"
     raft5:
         image: digital-fuesim-manv-raft-backend
-        build:
-            context: .
-            dockerfile: docker/Dockerfile.raft
         restart: unless-stopped
         container_name: digital-fuesim-manv-raft-backend-5
         environment:
@@ -199,7 +205,6 @@ services:
         volumes:
             - ./config/raft-5.json:/usr/local/app/raft.json
         networks:
-            default:
             raft:
                 ipv4_address: 172.16.238.5
         cpuset: "0-5"
@@ -211,7 +216,6 @@ services:
         environment:
             - DFM_USE_RAFT=true
             - DFM_RAFT_CONFIG_PATH=/usr/local/app/raft.json
-            - DEBUG=zmq-raft:*
         ports:
             - 4206:4200
             - 3306:3201
@@ -221,13 +225,11 @@ services:
         volumes:
             - ./config/raft-6.json:/usr/local/app/raft.json
         networks:
-            default:
+            raft:
+                ipv4_address: 172.16.238.16
         cpuset: "0-5"
     raft6:
         image: digital-fuesim-manv-raft-backend
-        build:
-            context: .
-            dockerfile: docker/Dockerfile.raft
         restart: unless-stopped
         container_name: digital-fuesim-manv-raft-backend-6
         environment:
@@ -238,7 +240,6 @@ services:
         volumes:
             - ./config/raft-6.json:/usr/local/app/raft.json
         networks:
-            default:
             raft:
                 ipv4_address: 172.16.238.6
         cpuset: "0-5"
@@ -250,7 +251,6 @@ services:
         environment:
             - DFM_USE_RAFT=true
             - DFM_RAFT_CONFIG_PATH=/usr/local/app/raft.json
-            - DEBUG=zmq-raft:*
         ports:
             - 4207:4200
             - 3307:3201
@@ -260,13 +260,11 @@ services:
         volumes:
             - ./config/raft-7.json:/usr/local/app/raft.json
         networks:
-            default:
+            raft:
+                ipv4_address: 172.16.238.17
         cpuset: "0-5"
     raft7:
         image: digital-fuesim-manv-raft-backend
-        build:
-            context: .
-            dockerfile: docker/Dockerfile.raft
         restart: unless-stopped
         container_name: digital-fuesim-manv-raft-backend-7
         environment:
@@ -277,7 +275,6 @@ services:
         volumes:
             - ./config/raft-7.json:/usr/local/app/raft.json
         networks:
-            default:
             raft:
                 ipv4_address: 172.16.238.7
         cpuset: "0-5"

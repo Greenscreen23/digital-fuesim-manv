@@ -25,9 +25,6 @@ export class ApiService {
         private readonly httpClient: HttpClient,
         private readonly originService: OriginService
     ) {
-        this.getOrigins().then(
-            ({ origins }) => (this.originService.origins = origins)
-        );
     }
 
     public async checkHealth() {

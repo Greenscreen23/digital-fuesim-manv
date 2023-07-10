@@ -8,12 +8,10 @@ import type { ExerciseSocket, ExerciseServer } from '../exercise-server';
 import { clientMap } from './client-map';
 import { ClientWrapper } from './client-wrapper';
 import {
-    registerGetStateHandler,
     registerJoinExerciseHandler,
     registerProposeActionHandler,
 } from './websocket-handler';
 import type { ExerciseStateMachine } from './state-machine';
-import { registerGetStateDiffHandler } from './websocket-handler/get-state-diff-handler';
 
 export class ExerciseWebsocketServer {
     public readonly exerciseServer: ExerciseServer;
@@ -44,7 +42,6 @@ export class ExerciseWebsocketServer {
         clientMap.set(client, new ClientWrapper(client));
 
         // register handlers
-        registerGetStateHandler(this.exerciseServer, client);
         registerProposeActionHandler(
             this.exerciseServer,
             client,
@@ -57,7 +54,6 @@ export class ExerciseWebsocketServer {
             this.raftClient,
             this.stateMachine
         );
-        registerGetStateDiffHandler(this.exerciseServer, client);
 
         // Register disconnect handler
         client.on('disconnect', () => {

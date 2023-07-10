@@ -28,11 +28,12 @@ export function secureOn<
         arg1: any,
         arg2: any,
         arg3: any,
+        arg4: any,
         callback: any,
         ...args: any[]
     ) => {
         try {
-            await listener(arg0, arg1, arg2, arg3, callback, ...args);
+            await listener(arg0, arg1, arg2, arg3, arg4, callback, ...args);
         } catch (e: unknown) {
             if (isDevelopment()) {
                 throw e;

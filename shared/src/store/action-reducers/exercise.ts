@@ -84,7 +84,7 @@ export namespace ExerciseActionReducers {
         action: PauseExerciseAction,
         reducer: (draftState) => {
             if (draftState.currentStatus !== 'running') {
-                throw new ReducerError('Cannot pause not running exercise');
+                console.error('Cannot pause not running exercise');
             }
             draftState.currentStatus = 'paused';
             return draftState;
@@ -96,7 +96,7 @@ export namespace ExerciseActionReducers {
         action: StartExerciseAction,
         reducer: (draftState) => {
             if (draftState.currentStatus === 'running') {
-                throw new ReducerError('Cannot start already running exercise');
+                console.error('Cannot start already running exercise');
             }
             draftState.currentStatus = 'running';
             return draftState;

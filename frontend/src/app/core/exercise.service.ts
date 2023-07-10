@@ -110,7 +110,7 @@ export class ExerciseService {
                 try {
                     await this.proposeAction(action, optimistic, id);
                 } catch (e: unknown) {
-                        console.error(e)
+                    console.error(e);
                 }
             }
         );
@@ -165,7 +165,10 @@ export class ExerciseService {
                             this.store
                         );
 
-                    const ownClient = selectStateSnapshot(selectOwnClient, this.store);
+                    const ownClient = selectStateSnapshot(
+                        selectOwnClient,
+                        this.store
+                    );
 
                     this.socket.off('performAction');
                     this.socket.off('disconnect');
@@ -191,24 +194,6 @@ export class ExerciseService {
                         return;
                     }
 
-                    const joinResponse = await new Promise<
-                        SocketResponse<UUID>
-                    >((resolve) => {
-                        this.socket.emit(
-                            'joinExercise',
-                            exerciseId,
-                            lastClientName,
-                            ownClientId,
-                            ownClient?.viewRestrictedToViewportId,
-                            resolve
-                        );
-                    });
-
-                    if (!joinResponse.success) {
-                        reject(joinResponse.message);
-                        return;
-                    }
-
                     const state = selectStateSnapshot(
                         (state) => state.application.exerciseState,
                         this.store
@@ -219,22 +204,35 @@ export class ExerciseService {
                         return;
                     }
 
-                    const getStateDiffResponse = await new Promise<
-                        SocketResponse<ExerciseAction[]>
+                    const joinResponse = await new Promise<
+                        SocketResponse<{
+                            clientId: UUID;
+                            actions?: ExerciseAction[];
+                        }>
                     >((resolve) => {
                         this.socket.emit(
-                            'getStateDiff',
+                            'joinExercise',
+                            exerciseId,
+                            lastClientName,
+                            ownClientId,
+                            ownClient?.viewRestrictedToViewportId,
                             state.appliedActionCount,
                             resolve
                         );
                     });
-                    if (!getStateDiffResponse.success) {
-                        reject(getStateDiffResponse.message);
+
+                    if (!joinResponse.success) {
+                        reject(joinResponse.message);
                         return;
                     }
 
-                    freeze(getStateDiffResponse.payload, true);
-                    getStateDiffResponse.payload.forEach((action) => {
+                    if (!joinResponse.payload.actions) {
+                        reject('Es konnten keine Aktionen geladen werden');
+                        return;
+                    }
+
+                    freeze(joinResponse.payload.actions, true);
+                    joinResponse.payload.actions.forEach((action) => {
                         this.store.dispatch(
                             createApplyServerActionAction(action)
                         );
@@ -242,7 +240,7 @@ export class ExerciseService {
 
                     this.store.dispatch(
                         createJoinExerciseAction(
-                            joinResponse.payload,
+                            joinResponse.payload.clientId,
                             selectStateSnapshot(
                                 (state) => state.application.exerciseState,
                                 this.store
@@ -331,7 +329,7 @@ export class ExerciseService {
      */
     public async joinExercise(
         exerciseId: string,
-        clientName: string,
+        clientName: string
     ): Promise<boolean> {
         this.socket.connect().on('connect_error', (error) => {
             this.messageService.postError({
@@ -339,18 +337,19 @@ export class ExerciseService {
                 error,
             });
         });
-        const joinResponse = await new Promise<SocketResponse<UUID>>(
-            (resolve) => {
-                this.socket.emit(
-                    'joinExercise',
-                    exerciseId,
-                    clientName,
-                    undefined,
-                    undefined,
-                    resolve
-                );
-            }
-        );
+        const joinResponse = await new Promise<
+            SocketResponse<{ clientId: UUID; state?: ExerciseState }>
+        >((resolve) => {
+            this.socket.emit(
+                'joinExercise',
+                exerciseId,
+                clientName,
+                undefined,
+                undefined,
+                undefined,
+                resolve
+            );
+        });
         if (!joinResponse.success) {
             this.messageService.postError({
                 title: 'Fehler beim Beitreten der Übung',
@@ -358,23 +357,18 @@ export class ExerciseService {
             });
             return false;
         }
-        const getStateResponse = await new Promise<
-            SocketResponse<ExerciseState>
-        >((resolve) => {
-            this.socket.emit('getState', resolve);
-        });
-        freeze(getStateResponse, true);
-        if (!getStateResponse.success) {
+        if (!joinResponse.payload.state) {
             this.messageService.postError({
-                title: 'Fehler beim Laden der Übung',
-                error: getStateResponse.message,
+                title: 'Fehler beim Beitreten der Übung',
+                error: 'Der Übungszustand konnte nicht geladen werden',
             });
             return false;
         }
+        freeze(joinResponse.payload.state, true);
         this.store.dispatch(
             createJoinExerciseAction(
-                joinResponse.payload,
-                getStateResponse.payload,
+                joinResponse.payload.clientId,
+                joinResponse.payload.state,
                 exerciseId,
                 clientName
             )

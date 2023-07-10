@@ -14,19 +14,19 @@ export interface ClientToServerEvents {
         clientName: string,
         clientId: UUID | undefined,
         viewRestrictedToViewportId: UUID | undefined,
-        callback: (response: SocketResponse<UUID>) => void
+        appliedActionCount: number | undefined,
+        callback: (
+            response: SocketResponse<{
+                clientId: UUID;
+                state?: ExerciseState;
+                actions?: ExerciseAction[];
+            }>
+        ) => void
     ) => void;
     proposeAction: (
         action: ExerciseAction,
         id: UUID | undefined,
         callback: (response: SocketResponse) => void
-    ) => void;
-    getState: (
-        callback: (response: SocketResponse<ExerciseState>) => void
-    ) => void;
-    getStateDiff: (
-        appliedActionCount: number,
-        callback: (response: SocketResponse<ExerciseAction[]>) => void
     ) => void;
 }
 

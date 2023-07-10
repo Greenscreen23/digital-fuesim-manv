@@ -491,11 +491,9 @@ export class ExerciseWrapper extends NormalType<
         return this.currentState;
     }
 
-    public async getStateDiff(
-        appliedActionCount: number
-    ): Promise<ExerciseAction[]> {
-        return (await this.getTimeLine()).actionsWrappers
-            .slice(appliedActionCount)
+    public getStateDiff(appliedActionCount: number): ExerciseAction[] {
+        return this.getTemporaryTimeLine()
+            .actionsWrappers.slice(appliedActionCount)
             .map(({ action }) => action);
     }
 
@@ -547,22 +545,22 @@ export class ExerciseWrapper extends NormalType<
             return;
         }
         const client = clientWrapper.client!;
-        const removeClientAction: ExerciseAction = {
-            type: '[Client] Remove client',
-            clientId: client.id,
-        };
+        // const removeClientAction: ExerciseAction = {
+        //     type: '[Client] Remove client',
+        //     clientId: client.id,
+        // };
         try {
             const clientId = client.id;
             clientWrapper.disconnect();
             this.clients.delete(clientWrapper);
-            await proposeExerciseActionToStateMachine(
-                raftClient,
-                this.trainerId,
-                clientId,
-                removeClientAction,
-                undefined,
-                stateMachine
-            );
+            // await proposeExerciseActionToStateMachine(
+            //     raftClient,
+            //     this.trainerId,
+            //     clientId,
+            //     removeClientAction,
+            //     undefined,
+            //     stateMachine
+            // );
         } catch (error: unknown) {
             console.error(error);
         }
@@ -664,6 +662,19 @@ export class ExerciseWrapper extends NormalType<
             );
             this.markAsSaved();
         }
+    }
+
+    public getTemporaryTimeLine(): ExerciseTimeline {
+        return {
+            initialState: this.initialState,
+            actionsWrappers: this.temporaryActionHistory
+                .sort((a, b) => a.index - b.index)
+                .map((action) => ({
+                    action: action.action,
+                    emitterId: action.emitterId,
+                    time: action.index,
+                })),
+        };
     }
 
     public async getTimeLine(): Promise<ExerciseTimeline> {

@@ -1,4 +1,8 @@
-import type { UUID } from 'digital-fuesim-manv-shared';
+import type {
+    ExerciseAction,
+    ExerciseState,
+    UUID,
+} from 'digital-fuesim-manv-shared';
 import type { ExerciseStateMachine } from 'exercise/state-machine';
 import type raft from 'node-zmq-raft';
 import { ValidationErrorWrapper } from '../../utils/validation-error-wrapper';
@@ -20,6 +24,7 @@ export const registerJoinExerciseHandler = (
             clientName: string,
             clientId: UUID | undefined,
             viewRestrictedToViewportId: UUID | undefined,
+            appliedActionCount: number | undefined,
             callback
         ) => {
             // When this listener is registered the socket is in the map.
@@ -63,9 +68,33 @@ export const registerJoinExerciseHandler = (
                 });
                 return;
             }
+            const payload: {
+                clientId: UUID;
+                actions?: ExerciseAction[];
+                state?: ExerciseState;
+            } = {
+                clientId: newClientId,
+            };
+
+            const exercise = clientMap.get(client)?.exercise;
+            if (!exercise) {
+                callback({
+                    success: false,
+                    message: 'No exercise selected',
+                    expected: false,
+                });
+                return;
+            }
+
+            if (appliedActionCount) {
+                payload.actions = exercise.getStateDiff(appliedActionCount);
+            } else {
+                payload.state = exercise.getStateSnapshot();
+            }
+
             callback({
                 success: true,
-                payload: newClientId,
+                payload,
             });
         }
     );

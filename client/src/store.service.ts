@@ -6,6 +6,7 @@ import {
     reduceExerciseState,
 } from 'digital-fuesim-manv-shared';
 import { OriginService } from './origin.service';
+import fs from 'node:fs';
 
 export class Store {
     public _state?: Immutable<ExerciseState>;
@@ -21,7 +22,11 @@ export class Store {
         } catch (error: any) {
             if (error instanceof ReducerError) {
                 console.warn(
-                    process.env['ID'], ': Error applying action:', error, ' while connected to ', this.originService.wsOrigin
+                    process.env['ID'],
+                    ': Error applying action:',
+                    error,
+                    ' while connected to ',
+                    this.originService.wsOrigin
                 );
                 // If the reducer throws an error (which is expected due to optimistic updates), we don't change the state
                 return;
@@ -54,7 +59,8 @@ export class Store {
 
     public get exerciseId(): string {
         if (!this._exerciseId) {
-            throw new Error('exerciseId not initialized');
+            console.error('exerciseId not initialized');
+            return process.env['EXERCISE_ID']!;
         }
         return this._exerciseId;
     }

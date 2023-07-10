@@ -6,11 +6,7 @@ export class ApiService {
     constructor(
         private readonly originService: OriginService,
         private readonly store: Store
-    ) {
-        this.getOrigins().then(
-            ({ origins }) => (this.originService.origins = origins)
-        );
-    }
+    ) {}
 
     public async checkHealth() {
         return this.api<null>(`${this.originService.httpOrigin}/api/health`)

@@ -6,7 +6,7 @@ import { ExerciseService } from './exercise.service';
 import fs from 'node:fs';
 
 async function main() {
-    const start = Date.now()
+    const start = Date.now();
     const workers = Number(process.env['WORKERS']);
     const vehicles = Number(process.env['VEHICLES']);
     const patients = Number(process.env['PATIENTS']);
@@ -19,6 +19,7 @@ async function main() {
     const originService = new OriginService(wsOrigin, httpOrigin);
     const store = new Store(originService);
     const apiService = new ApiService(originService, store);
+    originService.origins = (await apiService.getOrigins()).origins;
     const exerciseService = new ExerciseService(
         store,
         originService,
@@ -32,7 +33,7 @@ async function main() {
 
     if (cluster.isPrimary) {
         const ids = await apiService.createExercise();
-        console.log('exercise ids:', ids)
+        console.log('exercise ids:', ids);
         await exerciseService.joinExercise(ids.trainerId, 'trainer');
 
         cluster.on('exit', (worker, code, signal) => {
@@ -46,31 +47,36 @@ async function main() {
 
         for (let i = 0; i < workers; i++) {
             await new Promise<void>((resolve) => {
-                cluster.fork({ ID: i, EXERCISE_ID: ids.trainerId, START: start }).on('message', (msg) => {
-                    if (msg.type === 'ready') {
-                        workersReady++;
+                cluster
+                    .fork({ ID: i, EXERCISE_ID: ids.trainerId, START: start })
+                    .on('message', (msg) => {
+                        if (msg.type === 'ready') {
+                            workersReady++;
 
-                        if (workersReady === workers) {
-                            console.log('All workers ready, starting exercise');
+                            if (workersReady === workers) {
+                                console.log(
+                                    'All workers ready, starting exercise'
+                                );
 
-                            runExercise(exerciseService);
+                                runExercise(exerciseService);
+                            }
                         }
-                    }
-                    if (msg.type === 'joined') {
-                        resolve()
-                    }
-                });
-            })
+                        if (msg.type === 'joined') {
+                            resolve();
+                        }
+                    });
+            });
         }
 
         Object.values(cluster.workers ?? {}).forEach((worker) => {
             worker?.send({ type: 'prepare' });
         });
-
     } else {
         const exerciseId = process.env['EXERCISE_ID']!;
         const outdir = process.env['OUTDIR']!;
         const id = process.env['ID']!;
+
+        console.log(id, ': Connected to:', originService.wsOrigin);
 
         await exerciseService.joinExercise(exerciseId, id);
 
@@ -78,7 +84,7 @@ async function main() {
 
         fs.writeFileSync(`${outdir}/${id}.json`, JSON.stringify(data));
 
-        console.log(id, ': Done!')
+        console.log(id, ': Done!');
     }
 }
 
@@ -93,6 +99,8 @@ async function runExercise(exerciseService: ExerciseService) {
     });
 
     await new Promise((resolve) => setTimeout(resolve, duration));
+
+    console.log('Stopping exercise');
 
     exerciseService.proposeAction({
         type: '[Exercise] Pause',

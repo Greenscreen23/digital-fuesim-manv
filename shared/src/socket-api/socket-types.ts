@@ -14,12 +14,10 @@ export interface ClientToServerEvents {
         clientName: string,
         clientId: UUID | undefined,
         viewRestrictedToViewportId: UUID | undefined,
-        appliedActionCount: number | undefined,
         callback: (
             response: SocketResponse<{
                 clientId: UUID;
-                state?: ExerciseState;
-                actions?: ExerciseAction[];
+                state: ExerciseState;
             }>
         ) => void
     ) => void;

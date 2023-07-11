@@ -194,20 +194,10 @@ export class ExerciseService {
                         return;
                     }
 
-                    const state = selectStateSnapshot(
-                        (state) => state.application.exerciseState,
-                        this.store
-                    );
-
-                    if (!state) {
-                        reject('Der Übungszustand konnte nicht geladen werden');
-                        return;
-                    }
-
                     const joinResponse = await new Promise<
                         SocketResponse<{
                             clientId: UUID;
-                            actions?: ExerciseAction[];
+                            state: ExerciseState;
                         }>
                     >((resolve) => {
                         this.socket.emit(
@@ -216,7 +206,6 @@ export class ExerciseService {
                             lastClientName,
                             ownClientId,
                             ownClient?.viewRestrictedToViewportId,
-                            state.appliedActionCount,
                             resolve
                         );
                     });
@@ -226,25 +215,10 @@ export class ExerciseService {
                         return;
                     }
 
-                    if (!joinResponse.payload.actions) {
-                        reject('Es konnten keine Aktionen geladen werden');
-                        return;
-                    }
-
-                    freeze(joinResponse.payload.actions, true);
-                    joinResponse.payload.actions.forEach((action) => {
-                        this.store.dispatch(
-                            createApplyServerActionAction(action)
-                        );
-                    });
-
                     this.store.dispatch(
                         createJoinExerciseAction(
                             joinResponse.payload.clientId,
-                            selectStateSnapshot(
-                                (state) => state.application.exerciseState,
-                                this.store
-                            )!,
+                            joinResponse.payload.state,
                             exerciseId,
                             lastClientName
                         )
@@ -338,13 +312,12 @@ export class ExerciseService {
             });
         });
         const joinResponse = await new Promise<
-            SocketResponse<{ clientId: UUID; state?: ExerciseState }>
+            SocketResponse<{ clientId: UUID; state: ExerciseState }>
         >((resolve) => {
             this.socket.emit(
                 'joinExercise',
                 exerciseId,
                 clientName,
-                undefined,
                 undefined,
                 undefined,
                 resolve
@@ -354,13 +327,6 @@ export class ExerciseService {
             this.messageService.postError({
                 title: 'Fehler beim Beitreten der Übung',
                 error: joinResponse.message,
-            });
-            return false;
-        }
-        if (!joinResponse.payload.state) {
-            this.messageService.postError({
-                title: 'Fehler beim Beitreten der Übung',
-                error: 'Der Übungszustand konnte nicht geladen werden',
             });
             return false;
         }

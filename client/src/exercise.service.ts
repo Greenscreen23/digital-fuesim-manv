@@ -36,9 +36,6 @@ export class ExerciseService {
             patients: number;
         }
     ) {
-        this.stream = fs.createWriteStream(
-            `${process.env['OUTDIR']}/${process.env['ID']}-actions.txt`
-        );
         this.socket = io(this.originService.wsOrigin, {
             ...socketIoTransports,
         });
@@ -46,7 +43,6 @@ export class ExerciseService {
     }
 
     private joined: boolean = false;
-    private readonly stream: fs.WriteStream;
 
     private data?: {
         payloads: { id: UUID; send: number; received?: number }[];
@@ -129,17 +125,10 @@ export class ExerciseService {
                         return;
                     }
 
-                    const state = this.store.state;
-
-                    if (!state) {
-                        reject('Der Übungszustand konnte nicht geladen werden');
-                        return;
-                    }
-
                     const joinResponse = await new Promise<
                         SocketResponse<{
                             clientId: UUID;
-                            actions?: ExerciseAction[];
+                            state: ExerciseState;
                         }>
                     >((resolve) => {
                         this.socket.emit(
@@ -148,7 +137,6 @@ export class ExerciseService {
                             lastClientName,
                             ownClientId,
                             ownClient?.viewRestrictedToViewportId,
-                            state.appliedActionCount,
                             resolve
                         );
                     });
@@ -158,21 +146,11 @@ export class ExerciseService {
                         return;
                     }
 
-                    if (!joinResponse.payload.actions) {
-                        reject('Es konnten keine Aktionen geladen werden');
-                        return;
-                    }
-
-                    freeze(joinResponse.payload.actions, true);
-                    joinResponse.payload.actions.forEach((action) => {
-                        this.store.applyServerAction(action);
-                    });
-
                     this.store.joinExercise(
                         joinResponse.payload.clientId,
                         exerciseId,
                         lastClientName,
-                        this.store.state
+                        joinResponse.payload.state
                     );
 
                     console.log(
@@ -206,7 +184,6 @@ export class ExerciseService {
                 if (payload) {
                     payload.received = Date.now() - this.data!.start;
                 }
-                this.stream.write(id + '\n');
             }
 
             if (action.type === '[Exercise] Start') {
@@ -265,7 +242,7 @@ export class ExerciseService {
             console.error(error);
         });
         const joinResponse = await new Promise<
-            SocketResponse<{ clientId: UUID; state?: ExerciseState }>
+            SocketResponse<{ clientId: UUID; state: ExerciseState }>
         >((resolve) => {
             this.socket.emit(
                 'joinExercise',
@@ -273,16 +250,11 @@ export class ExerciseService {
                 clientName,
                 undefined,
                 undefined,
-                undefined,
                 resolve
             );
         });
         if (!joinResponse.success) {
             console.error(joinResponse.message);
-            return false;
-        }
-        if (!joinResponse.payload.state) {
-            console.error('Fehler beim laden des Übungszustands');
             return false;
         }
 

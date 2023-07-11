@@ -24,7 +24,6 @@ export const registerJoinExerciseHandler = (
             clientName: string,
             clientId: UUID | undefined,
             viewRestrictedToViewportId: UUID | undefined,
-            appliedActionCount: number | undefined,
             callback
         ) => {
             // When this listener is registered the socket is in the map.
@@ -68,13 +67,6 @@ export const registerJoinExerciseHandler = (
                 });
                 return;
             }
-            const payload: {
-                clientId: UUID;
-                actions?: ExerciseAction[];
-                state?: ExerciseState;
-            } = {
-                clientId: newClientId,
-            };
 
             const exercise = clientMap.get(client)?.exercise;
             if (!exercise) {
@@ -86,15 +78,12 @@ export const registerJoinExerciseHandler = (
                 return;
             }
 
-            if (appliedActionCount) {
-                payload.actions = exercise.getStateDiff(appliedActionCount);
-            } else {
-                payload.state = exercise.getStateSnapshot();
-            }
-
             callback({
                 success: true,
-                payload,
+                payload: {
+                    clientId: newClientId,
+                    state: exercise.getStateSnapshot(),
+                },
             });
         }
     );

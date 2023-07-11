@@ -43,6 +43,8 @@ services:
             raft:
                 ipv4_address: 172.16.238.250
         cpuset: \"0-$((NUM_CPUS - 1))\"
+        cap_add:
+            - NET_ADMIN
 
     dfm1:
         image: digital-fuesim-manv-dfm-raft

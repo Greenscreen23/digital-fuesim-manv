@@ -16,9 +16,32 @@ export class Store {
 
     constructor(private readonly originService: OriginService) {}
 
+    private blockedHistory: (
+        | { type: 'action'; action: ExerciseAction }
+        | { type: 'state'; state: ExerciseState | undefined }
+    )[] = [];
+
+    private clearBlockedHistory() {
+        this.blockedHistory.forEach((item) => {
+            if (item.type === 'action') {
+                this._state = reduceExerciseState(this.state, item.action);
+            }
+            if (item.type === 'state') {
+                this._state = item.state;
+            }
+        });
+        this.blockedHistory = [];
+    }
+
     public applyServerAction(serverAction: ExerciseAction) {
+        if (this.blocking) {
+            this.blockedHistory.push({ type: 'action', action: serverAction });
+            return;
+        }
+
         try {
-            this.state = reduceExerciseState(this.state, serverAction);
+            this.clearBlockedHistory();
+            this._state = reduceExerciseState(this.state, serverAction);
         } catch (error: any) {
             if (error instanceof ReducerError) {
                 console.warn(
@@ -35,6 +58,8 @@ export class Store {
         }
     }
 
+    public blocking = false;
+
     public get state(): Immutable<ExerciseState> {
         if (!this._state) {
             throw new Error('State not initialized');
@@ -43,6 +68,13 @@ export class Store {
     }
 
     public set state(newState: Immutable<ExerciseState> | undefined) {
+        if (this.blocking) {
+            this.blockedHistory.push({ type: 'state', state: newState });
+            return;
+        }
+
+        this.clearBlockedHistory();
+
         this._state = newState;
     }
 
@@ -89,6 +121,6 @@ export class Store {
         this.ownClientId = ownClientId;
         this.exerciseId = exerciseId;
         this.lastClientName = clientName;
-        this.state = exerciseState;
+        this._state = exerciseState;
     }
 }

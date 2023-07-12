@@ -91,6 +91,7 @@ export class ExerciseService {
     }
 
     private async rejoinExercise() {
+        this.store.blocking = true;
         const exerciseId = this.store.exerciseId;
         const ownClientId = this.store.ownClientId;
         const lastClientName = this.store.lastClientName;
@@ -98,11 +99,11 @@ export class ExerciseService {
 
         console.error(process.env['ID'], ': rejoining exercise');
 
-        this.socket.off('performAction');
-        this.socket.off('disconnect');
-        this.socket.disconnect();
         while (this.originService.newOrigin()) {
             try {
+                this.socket.off('performAction');
+                this.socket.off('disconnect');
+                this.socket.disconnect();
                 // eslint-disable-next-line no-await-in-loop, no-async-promise-executor, @typescript-eslint/no-loop-func
                 await new Promise<void>(async (resolve, reject) => {
                     if (!(await this.apiSerivce.checkHealth())) {
@@ -116,6 +117,7 @@ export class ExerciseService {
                     this.socket.connect().on('connect_error', (error) => {
                         reject(error);
                     });
+                    this.initializeSocket();
 
                     if (
                         exerciseId === undefined ||
@@ -153,12 +155,13 @@ export class ExerciseService {
                         joinResponse.payload.state
                     );
 
+                    this.store.blocking = false
+
                     console.log(
                         process.env['ID'],
                         ': rejoined exercise on host',
                         this.originService.wsOrigin
                     );
-                    this.initializeSocket();
                     resolve();
                 });
                 return;
@@ -297,7 +300,7 @@ export class ExerciseService {
      */
     public async proposeAction(
         action: ExerciseAction,
-        optimistic: boolean = true,
+        optimistic: boolean = false,
         id: UUID | undefined = undefined
     ) {
         if (!this.optimisticActionHandler) {

@@ -51,36 +51,42 @@ export class SimulatedParticipant {
         const xDiff = Math.abs(1461493.8377002398 - 1461712.8590994477);
 
         const viewPortId = uuid();
-        await this.proposeAction({
-            type: '[Viewport] Add viewport',
-            viewport: {
-                id: viewPortId,
-                type: 'viewport',
-                position: MapPosition.create(
-                    MapCoordinates.create(xBase + xDiff * id, y)
-                ),
-                size: {
-                    height: 76.59574468085107,
-                    width: 136.17021276595744,
+        await this.proposeAction(
+            {
+                type: '[Viewport] Add viewport',
+                viewport: {
+                    id: viewPortId,
+                    type: 'viewport',
+                    position: MapPosition.create(
+                        MapCoordinates.create(xBase + xDiff * id, y)
+                    ),
+                    size: {
+                        height: 76.59574468085107,
+                        width: 136.17021276595744,
+                    },
+                    name: `Viewport ${id}`,
                 },
-                name: `Viewport ${id}`,
             },
-        }, false);
-        await this.proposeAction({
-            type: '[Client] Restrict to viewport',
-            clientId: this.store.ownClientId,
-            viewportId: viewPortId,
-        }, false);
+            false
+        );
+        await this.proposeAction(
+            {
+                type: '[Client] Restrict to viewport',
+                clientId: this.store.ownClientId,
+                viewportId: viewPortId,
+            },
+            false
+        );
 
         const prepPromise = new Promise<void>((resolve) => {
             process.on('message', (msg: any) => {
                 if (msg.type === 'prepare') {
                     resolve();
                 }
-            })
-        })
+            });
+        });
 
-        process.send!({ type: 'joined' })
+        process.send!({ type: 'joined' });
 
         await prepPromise;
 
@@ -109,10 +115,13 @@ export class SimulatedParticipant {
             );
         for (const vehicle of unloadableVehicles) {
             // eslint-disable-next-line no-await-in-loop
-            await this.proposeAction({
-                type: '[Vehicle] Unload vehicle',
-                vehicleId: vehicle.id,
-            });
+            await this.proposeAction(
+                {
+                    type: '[Vehicle] Unload vehicle',
+                    vehicleId: vehicle.id,
+                },
+                false
+            );
         }
         console.log(`${id}: all vehicles unloaded`);
         // make sure there are at least x patients in the viewport
@@ -135,7 +144,7 @@ export class SimulatedParticipant {
                 personnelId: personnelInViewport.id,
                 // TODO: maybe near a patient?
                 targetPosition: this.getRandomPosition(),
-            });
+            }, true);
         }
         console.log(`${id}: all Personnel moved once`);
 
@@ -148,7 +157,7 @@ export class SimulatedParticipant {
                 materialId: materialInViewport.id,
                 // TODO: maybe near a patient?
                 targetPosition: this.getRandomPosition(),
-            });
+            }, true);
         }
         console.log(`${id}: all Material moved once`);
 
@@ -161,7 +170,7 @@ export class SimulatedParticipant {
                 patientId: patientsInViewport.id,
                 // TODO: maybe near a patient?
                 targetPosition: this.getRandomPosition(),
-            });
+            }, true);
         }
         console.log(`${id}: all Patients moved once`);
 
@@ -209,7 +218,7 @@ export class SimulatedParticipant {
         return this.proposeAction({
             type: '[Patient] Add patient',
             patient,
-        });
+        }, false);
     }
 
     private async createVehicle() {
@@ -275,7 +284,7 @@ export class SimulatedParticipant {
                     ),
                     // TODO: maybe near a patient?
                     targetPosition: this.getRandomPosition(),
-                }),
+                }, true),
         },
         {
             probability: 0.053 * this.probabilityMultiplyer,
@@ -287,7 +296,7 @@ export class SimulatedParticipant {
                     ),
                     // TODO: maybe near a patient?
                     targetPosition: this.getRandomPosition(),
-                }),
+                }, true),
         },
         {
             probability: 0.022 * this.probabilityMultiplyer,
@@ -298,7 +307,7 @@ export class SimulatedParticipant {
                         Object.keys(this.getVisiblePatients())
                     ),
                     targetPosition: this.getRandomPosition(),
-                }),
+                }, true),
         },
     ];
 

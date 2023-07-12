@@ -1,7 +1,9 @@
 #!/bin/bash
 NUM_CONFIGS=$1
-NUM_CPUS=$2
-HOST=$3
+NUM_CPUS_SERVER=$2
+NUM_CPUS_CLIENT=$3
+HOST=$4
+DELAY=$5
 DOCKER_COMPOSE_FILE='./docker-compose.generated.yml'
 RAFT_CONFIG_FOLDER='./config'
 
@@ -14,8 +16,17 @@ fi
 rm -rf $RAFT_CONFIG_FOLDER
 mkdir -p $RAFT_CONFIG_FOLDER
 
+IPS="172.16.238.101 172.16.238.111"
+for index in $(seq 2 $NUM_CONFIGS)
+do
+    IPS="$IPS 172.16.238.$index 172.16.238.$((index + 10))"
+done
+
+printf "" > $DOCKER_COMPOSE_FILE
+
 printf "version: '3'
 networks:
+    client:
     raft:
         ipam:
             driver: default
@@ -33,16 +44,15 @@ services:
             - WORKERS=30
             - VEHICLES=900
             - PATIENTS=600
-            - WS_ORIGIN=ws://172.16.238.111:3200
-            - HTTP_ORIGIN=http://172.16.238.111:3201
+            - WS_ORIGIN=ws://dfm1:3200
+            - HTTP_ORIGIN=http://dfm1:3201
             - DURATION=3600000
             - OUTDIR=/usr/local/app/data
         volumes:
             - ./data:/usr/local/app/data
         networks:
-            raft:
-                ipv4_address: 172.16.238.250
-        cpuset: \"0-$((NUM_CPUS - 1))\"
+            client:
+        cpuset: \"$NUM_CPUS_SERVER-$((NUM_CPUS_SERVER + NUM_CPUS_CLIENT - 1))\"
         cap_add:
             - NET_ADMIN
 
@@ -56,6 +66,9 @@ services:
         environment:
             - DFM_USE_RAFT=true
             - DFM_RAFT_CONFIG_PATH=/usr/local/app/raft.json
+            - IPS=$IPS
+            - OTHER_IP=172.16.238.101
+            - DELAY=$DELAY
         ports:
             - 4201:4200
             - 3301:3201
@@ -65,9 +78,12 @@ services:
         volumes:
             - $RAFT_CONFIG_FOLDER/raft-1.json:/usr/local/app/raft.json
         networks:
+            client:
             raft:
                 ipv4_address: 172.16.238.111
-        cpuset: \"0-$((NUM_CPUS - 1))\"
+        cpuset: \"0-$((NUM_CPUS_SERVER - 1))\"
+        cap_add:
+            - NET_ADMIN
     raft1:
         image: digital-fuesim-manv-raft-backend
         build:
@@ -78,6 +94,9 @@ services:
         environment:
             - RAFT_CONFIG_PATH=/usr/local/app/raft.json
             - DEBUG=zmq-raft:*
+            - IPS=$IPS
+            - OTHER_IP=172.16.238.111
+            - DELAY=$DELAY
         ports:
             - 8501:8501
         volumes:
@@ -85,7 +104,9 @@ services:
         networks:
             raft:
                 ipv4_address: 172.16.238.101
-        cpuset: \"0-$((NUM_CPUS - 1))\"" > $DOCKER_COMPOSE_FILE
+        cpuset: \"0-$((NUM_CPUS_SERVER - 1))\"
+        cap_add:
+            - NET_ADMIN" >> $DOCKER_COMPOSE_FILE
 
 for index in $(seq 2 $NUM_CONFIGS)
 do
@@ -99,6 +120,9 @@ do
         environment:
             - DFM_USE_RAFT=true
             - DFM_RAFT_CONFIG_PATH=/usr/local/app/raft.json
+            - IPS=$IPS
+            - OTHER_IP=172.16.238.$index
+            - DELAY=$DELAY
         ports:
             - 42$padded_index:4200
             - 33$padded_index:3201
@@ -108,9 +132,12 @@ do
         volumes:
             - $RAFT_CONFIG_FOLDER/raft-$index.json:/usr/local/app/raft.json
         networks:
+            client:
             raft:
                 ipv4_address: 172.16.238.$((index + 10))
-        cpuset: \"0-$((NUM_CPUS - 1))\"
+        cpuset: \"0-$((NUM_CPUS_SERVER - 1))\"
+        cap_add:
+            - NET_ADMIN
     raft$index:
         image: digital-fuesim-manv-raft-backend
         restart: unless-stopped
@@ -118,6 +145,9 @@ do
         environment:
             - RAFT_CONFIG_PATH=/usr/local/app/raft.json
             - DEBUG=zmq-raft:*
+            - IPS=$IPS
+            - OTHER_IP=172.16.238.$((index + 10))
+            - DELAY=$DELAY
         ports:
             - 85$padded_index:85$padded_index
         volumes:
@@ -125,11 +155,13 @@ do
         networks:
             raft:
                 ipv4_address: 172.16.238.$index
-        cpuset: \"0-$((NUM_CPUS - 1))\"" >> $DOCKER_COMPOSE_FILE
+        cap_add:
+            - NET_ADMIN
+        cpuset: \"0-$((NUM_CPUS_SERVER - 1))\"" >> $DOCKER_COMPOSE_FILE
 done
 
 PEERS="{ \"id\": \"raft1\", \"url\": \"tcp://172.16.238.101:8047\" }"
-ORIGINS="{ \"ws\": \"ws://172.16.238.111:3200\", \"http\": \"http://172.16.238.111:3201\" }"
+ORIGINS="{ \"ws\": \"ws://dfm1:3200\", \"http\": \"http://dfm1:3201\" }"
 
 for index in $(seq 2 $NUM_CONFIGS)
 do
@@ -137,7 +169,7 @@ do
     PEERS="$PEERS,
         { \"id\": \"raft$index\", \"url\": \"tcp://172.16.238.$index:8047\" }"
     ORIGINS="$ORIGINS,
-        { \"ws\": \"ws://172.16.238.$((index + 10)):3200\", \"http\": \"http://172.16.238.$((index + 10)):3201\" }"
+        { \"ws\": \"ws://dfm$index:3200\", \"http\": \"http://dfm$index:3201\" }"
 done
 
 for index in $(seq 1 $NUM_CONFIGS)

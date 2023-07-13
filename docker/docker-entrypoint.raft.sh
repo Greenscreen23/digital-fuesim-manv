@@ -2,7 +2,7 @@ IF=$(ip route get $OTHER_IP | head -n 1 | cut -d ' ' -f3)
 OWN_IP=$(ip route get $OTHER_IP | head -n 1 | cut -d ' ' -f5)
 
 tc qdisc add dev $IF root handle 1: prio
-tc qdisc add dev $IF parent 1:3 handle 30: netem delay $DELAY
+tc qdisc add dev $IF parent 1:3 handle 30: netem delay $(echo $DELAY)ms
 
 for ip in $(echo $IPS | tr ' ' '\n')
 do

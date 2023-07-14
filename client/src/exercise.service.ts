@@ -38,7 +38,9 @@ export class ExerciseService {
     ) {
         this.socket = io(this.originService.wsOrigin, {
             ...socketIoTransports,
-        });
+        }).on('connect_error', (error) => {
+            console.error(error);
+        });;
         this.initializeSocket();
     }
 
@@ -238,9 +240,6 @@ export class ExerciseService {
         exerciseId: string,
         clientName: string
     ): Promise<boolean> {
-        this.socket.connect().on('connect_error', (error) => {
-            console.error(error);
-        });
         const joinResponse = await new Promise<
             SocketResponse<{ clientId: UUID; state: ExerciseState }>
         >((resolve) => {

@@ -487,8 +487,8 @@ export class ExerciseWrapper extends NormalType<
     }
 
     // TODO: To more generic function
-    private emitAction(action: ExerciseAction) {
-        this.clients.forEach((client) => client.emitAction(action));
+    private emitAction(action: ExerciseAction, id?: UUID) {
+        this.clients.forEach((client) => client.emitAction(action, id));
     }
 
     public addClient(clientWrapper: ClientWrapper) {
@@ -543,11 +543,12 @@ export class ExerciseWrapper extends NormalType<
     public applyAction(
         action: ExerciseAction,
         emitterId: UUID | null,
-        intermediateAction?: () => void
+        intermediateAction?: () => void,
+        id?: UUID
     ): void {
         this.reduce(action, emitterId);
         intermediateAction?.();
-        this.emitAction(action);
+        this.emitAction(action, id);
     }
 
     /**

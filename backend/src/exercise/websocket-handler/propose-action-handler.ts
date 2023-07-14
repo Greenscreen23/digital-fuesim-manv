@@ -1,4 +1,4 @@
-import type { ExerciseAction } from 'digital-fuesim-manv-shared';
+import type { ExerciseAction, UUID } from 'digital-fuesim-manv-shared';
 import {
     ExpectedReducerError,
     ReducerError,
@@ -18,7 +18,7 @@ export const registerProposeActionHandler = (
     secureOn(
         client,
         'proposeAction',
-        (action: ExerciseAction, callback): void => {
+        (action: ExerciseAction, id: UUID | undefined, callback): void => {
             const clientWrapper = clientMap.get(client);
             if (!clientWrapper) {
                 // There is no client. Skip.
@@ -70,7 +70,7 @@ export const registerProposeActionHandler = (
             }
             // 4. apply & broadcast action (+ save to timeline)
             try {
-                exerciseWrapper.applyAction(action, clientWrapper.client.id);
+                exerciseWrapper.applyAction(action, clientWrapper.client.id, undefined, id);
                 onApply(
                     {
                         type: '[Backend] Apply Exercise Action',

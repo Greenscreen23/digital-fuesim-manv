@@ -180,7 +180,7 @@ export class ExerciseService {
             async (action) => {
                 const response = await new Promise<SocketResponse>(
                     (resolve) => {
-                        this.socket.emit('proposeAction', action, resolve);
+                        this.socket.emit('proposeAction', action, undefined, resolve);
                     }
                 );
                 if (!response.success) {

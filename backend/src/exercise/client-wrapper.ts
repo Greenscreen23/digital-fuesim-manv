@@ -62,8 +62,8 @@ export class ClientWrapper {
         return this.relatedExerciseClient;
     }
 
-    public emitAction(action: ExerciseAction) {
-        this.socket.emit('performAction', action);
+    public emitAction(action: ExerciseAction, id?: UUID) {
+        this.socket.emit('performAction', action, id);
     }
 
     public disconnect() {

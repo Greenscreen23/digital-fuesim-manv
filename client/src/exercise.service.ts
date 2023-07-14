@@ -49,7 +49,7 @@ export class ExerciseService {
         running: {
             start: number;
             end?: number;
-            ticks: { at: number; leader: string }[];
+            ticks: { at: number }[];
         }[];
         connections: { start: number; end?: number; origin: string }[];
         start: number;
@@ -138,7 +138,6 @@ export class ExerciseService {
                             exerciseId,
                             lastClientName,
                             ownClientId,
-                            ownClient?.viewRestrictedToViewportId,
                             resolve
                         );
                     });
@@ -199,7 +198,6 @@ export class ExerciseService {
             if (action.type === '[Exercise] Tick') {
                 this.data?.running.at(-1)?.ticks.push({
                     at: Date.now() - this.data.start,
-                    leader: action.leaderId,
                 });
             }
 
@@ -223,7 +221,6 @@ export class ExerciseService {
                 this.data.connections.at(-1)!.end =
                     Date.now() - this.data.start;
             }
-            this.originService.resetOrigins();
             if (this.joined) {
                 this.rejoinExercise();
             }
@@ -251,7 +248,6 @@ export class ExerciseService {
                 'joinExercise',
                 exerciseId,
                 clientName,
-                undefined,
                 undefined,
                 resolve
             );

@@ -205,8 +205,16 @@ export class ExerciseWrapper extends NormalType<
      * This function gets called once every second in case the exercise is running.
      * All periodic actions of the exercise (e.g. status changes for patients) should happen here.
      */
-    public readonly tick = async (tickInterval: number) => {
+    public readonly tick = async (
+        tickInterval: number,
+        onApply: (action: ExerciseAction, exerciseId: string) => void
+    ) => {
         if (!this.started) return;
+        if (
+            this.clients.size * 2 <=
+            Object.keys(this.getStateSnapshot().clients).length
+        )
+            return;
         try {
             const patientUpdates = patientTick(
                 this.getStateSnapshot(),
@@ -224,18 +232,18 @@ export class ExerciseWrapper extends NormalType<
                 tickInterval,
             };
             this.applyAction(updateAction, this.emitterId);
+            onApply(updateAction, this.trainerId);
             this.tickCounter++;
             this.markAsModified();
         } catch (e: unknown) {
             // Something went wrong in tick, probably some corrupted simulation state.
             console.error(e);
             try {
-                this.applyAction(
-                    {
-                        type: '[Exercise] Pause',
-                    },
-                    this.emitterId
-                );
+                const action = {
+                    type: '[Exercise] Pause',
+                } as const;
+                this.applyAction(action, this.emitterId);
+                onApply(action, this.trainerId);
                 this.markAsModified();
             } catch {
                 // Alright, this is enough. Something is fundamentally broken.
@@ -519,18 +527,6 @@ export class ExerciseWrapper extends NormalType<
             clientWrapper.disconnect();
             this.clients.delete(clientWrapper);
         });
-        if (
-            Object.values(this.currentState.clients).length === 0 &&
-            this.currentState.currentStatus === 'running'
-        ) {
-            // Pause the exercise
-            this.applyAction(
-                {
-                    type: '[Exercise] Pause',
-                },
-                null
-            );
-        }
     }
 
     public started = false;

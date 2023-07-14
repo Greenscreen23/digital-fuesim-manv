@@ -78,7 +78,16 @@ export class FuesimServer {
     private readonly tickHandler = new PeriodicEventHandler(async () => {
         exerciseMap.forEach((exercise, id) => {
             if (exercise.getRoleFromUsedId(id) !== 'trainer') {
-                exercise.tick(this.tickInterval);
+                exercise.tick(this.tickInterval, (action, exerciseId) => {
+                    this.backendWebsocketServer.publishAction(
+                        {
+                            type: '[Backend] Apply Exercise Action',
+                            action,
+                            emitterId: exerciseId,
+                        },
+                        exerciseId
+                    );
+                });
             }
         });
     }, this.tickInterval);

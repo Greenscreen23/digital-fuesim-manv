@@ -1,0 +1,30 @@
+ARG DEVELOPMENT_PATH="/usr/local/app"
+
+FROM node:18-bullseye-slim
+ARG DEVELOPMENT_PATH
+
+RUN apt update
+RUN apt install -y iproute2
+
+COPY ["./shared/package.json", "./shared/package-lock.json", "./shared/.npmrc", "$DEVELOPMENT_PATH/shared/"]
+WORKDIR $DEVELOPMENT_PATH/shared
+RUN npm i
+
+COPY ["./client/package.json", "./client/package-lock.json", "./client/.npmrc", "$DEVELOPMENT_PATH/client/"]
+WORKDIR $DEVELOPMENT_PATH/client
+RUN npm i
+
+COPY ./tsconfig.base.json $DEVELOPMENT_PATH/
+
+COPY ./shared $DEVELOPMENT_PATH/shared
+WORKDIR $DEVELOPMENT_PATH/shared
+RUN npm run build
+
+COPY ./client $DEVELOPMENT_PATH/client
+WORKDIR $DEVELOPMENT_PATH/client
+RUN npm run build
+
+COPY ./docker/docker-entrypoint.client.sh /docker-entrypoint.client.sh
+RUN chmod +x /docker-entrypoint.client.sh
+
+CMD [ "/bin/bash", "-c", "/docker-entrypoint.client.sh" ]

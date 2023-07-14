@@ -139,7 +139,7 @@ export class ExerciseService {
                 error,
             });
         });
-        const joinResponse = await new Promise<SocketResponse<UUID>>(
+        const joinResponse = await new Promise<SocketResponse<{ clientId: UUID, state: ExerciseState }>>(
             (resolve) => {
                 this.socket.emit(
                     'joinExercise',
@@ -157,23 +157,11 @@ export class ExerciseService {
             });
             return false;
         }
-        const getStateResponse = await new Promise<
-            SocketResponse<ExerciseState>
-        >((resolve) => {
-            this.socket.emit('getState', resolve);
-        });
-        freeze(getStateResponse, true);
-        if (!getStateResponse.success) {
-            this.messageService.postError({
-                title: 'Fehler beim Laden der Übung',
-                error: getStateResponse.message,
-            });
-            return false;
-        }
+        freeze(joinResponse.payload.state, true);
         this.store.dispatch(
             createJoinExerciseAction(
-                joinResponse.payload,
-                getStateResponse.payload,
+                joinResponse.payload.clientId,
+                joinResponse.payload.state,
                 exerciseId,
                 clientName
             )

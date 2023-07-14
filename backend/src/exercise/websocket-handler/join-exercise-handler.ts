@@ -64,9 +64,13 @@ export const registerJoinExerciseHandler = (
                 },
                 exerciseId
             );
+            const exercise = clientMap.get(client)!.exercise!;
             callback({
                 success: true,
-                payload: newClientId,
+                payload: {
+                    clientId: newClientId,
+                    state: exercise.getStateSnapshot(),
+                }
             });
         }
     );

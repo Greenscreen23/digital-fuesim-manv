@@ -12,14 +12,13 @@ export interface ClientToServerEvents {
         exerciseId: string,
         clientName: string,
         clientId: UUID | undefined,
-        callback: (response: SocketResponse<UUID>) => void
+        callback: (
+            response: SocketResponse<{ clientId: UUID; state: ExerciseState }>
+        ) => void
     ) => void;
     proposeAction: (
         action: ExerciseAction,
         callback: (response: SocketResponse) => void
-    ) => void;
-    getState: (
-        callback: (response: SocketResponse<ExerciseState>) => void
     ) => void;
 }
 

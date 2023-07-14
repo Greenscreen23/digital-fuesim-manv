@@ -210,11 +210,7 @@ export class ExerciseWrapper extends NormalType<
         onApply: (action: ExerciseAction, exerciseId: string) => void
     ) => {
         if (!this.started) return;
-        if (
-            this.clients.size * 2 <=
-            Object.keys(this.getStateSnapshot().clients).length
-        )
-            return;
+        if (this.clients.size === 0) return;
         try {
             const patientUpdates = patientTick(
                 this.getStateSnapshot(),

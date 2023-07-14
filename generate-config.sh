@@ -1,5 +1,9 @@
 #!/bin/sh
 NUM_CONFIGS=$1
+NUM_CPUS_SERVER=$2
+NUM_CPUS_CLIENT=$3
+HOST=$4
+DELAY=$5
 DOCKER_COMPOSE_FILE='./docker-compose.generated.yml'
 RAFT_CONFIG_FOLDER='./config'
 
@@ -12,6 +16,13 @@ fi
 rm -rf $RAFT_CONFIG_FOLDER
 mkdir -p $RAFT_CONFIG_FOLDER
 
+
+IPS="172.16.238.101"
+for index in $(seq 2 $NUM_CONFIGS)
+do
+    IPS="$IPS 172.16.238.$index"
+done
+
 printf "version: '3'
 networks:
     raft:
@@ -20,6 +31,29 @@ networks:
             config:
                 - subnet: 172.16.238.0/24
 services:
+    client:
+        image: digital-fuesim-manv-dfm-client
+        build:
+            context: .
+            dockerfile: docker/Dockerfile.client
+        restart: unless-stopped
+        container_name: digital-fuesim-manv-client
+        environment:
+            - WORKERS=30
+            - VEHICLES=900
+            - PATIENTS=600
+            - WS_ORIGIN=ws://dfm1:3200
+            - HTTP_ORIGIN=http://dfm1:3201
+            - DURATION=3600000
+            - OUTDIR=/usr/local/app/data
+        volumes:
+            - ./data:/usr/local/app/data
+        networks:
+            raft:
+                ipv4_address: 172.16.238.222
+        cpuset: \"$NUM_CPUS_SERVER-$((NUM_CPUS_SERVER + NUM_CPUS_CLIENT - 1))\"
+        cap_add:
+            - NET_ADMIN
     dfm1:
         image: digital-fuesim-manv-dfm-raft
         build:
@@ -30,18 +64,22 @@ services:
         environment:
             - DFM_USE_RAFT=true
             - DFM_RAFT_CONFIG_PATH=/usr/local/app/raft.json
+            - IPS=$IPS
+            - DELAY=$DELAY
         ports:
             - 127.0.0.1:4201:4200
             - 127.0.0.1:3301:3201
             - 127.0.0.1:3201:3200
-            - 127.0.0.1:8501:8501
         env_file:
             - .env
         volumes:
             - $RAFT_CONFIG_FOLDER/raft-1.json:/usr/local/app/raft.json
         networks:
             raft:
-                ipv4_address: 172.16.238.101" > $DOCKER_COMPOSE_FILE
+                ipv4_address: 172.16.238.101
+        cpuset: \"0-$((NUM_CPUS_SERVER - 1))\"
+        cap_add:
+            - NET_ADMIN" > $DOCKER_COMPOSE_FILE
 
 for index in $(seq 2 $NUM_CONFIGS)
 do
@@ -54,36 +92,45 @@ do
         environment:
             - DFM_USE_RAFT=true
             - DFM_RAFT_CONFIG_PATH=/usr/local/app/raft.json
+            - IPS=$IPS
+            - DELAY=$DELAY
         ports:
             - 127.0.0.1:42$padded_index:4200
             - 127.0.0.1:33$padded_index:3201
             - 127.0.0.1:32$padded_index:3200
-            - 127.0.0.1:85$padded_index:85$padded_index
         env_file:
             - .env
         volumes:
             - $RAFT_CONFIG_FOLDER/raft-$index.json:/usr/local/app/raft.json
         networks:
             raft:
-                ipv4_address: 172.16.238.$index" >> $DOCKER_COMPOSE_FILE
+                ipv4_address: 172.16.238.$index
+        cpuset: \"0-$((NUM_CPUS_SERVER - 1))\"
+        cap_add:
+            - NET_ADMIN" >> $DOCKER_COMPOSE_FILE
 done
 
-PEERS="{ \"id\": \"raft1\", \"url\": \"ws://172.16.238.101:8047\" }"
+PEERS=""
+ORIGINS="{ \"ws\": \"ws://dfm1:3200\", \"http\": \"http://dfm1:3201\" }"
 
 for index in $(seq 2 $NUM_CONFIGS)
 do
-    PEERS="$PEERS,
-        { \"id\": \"raft$index\", \"url\": \"ws://172.16.238.$index:8047\" }"
+    ORIGINS="$ORIGINS,
+        { \"ws\": \"ws://dfm$index:3200\", \"http\": \"http://dfm$index:3201\" }"
 done
 
-for index in $(seq 1 $NUM_CONFIGS)
+for index in $(seq $NUM_CONFIGS -1 1)
 do
     padded_index=$(printf "%02d" $index)
     printf "{
     \"id\": \"raft$index\",
+    \"dfmUrl\": \"ws://dfm$index:5431\",
     \"secret\": \"\",
     \"peers\": [
         $PEERS
+    ],
+    \"origins\": [
+        $ORIGINS
     ],
     \"data\": {
         \"path\": \"raft\",
@@ -94,7 +141,7 @@ do
     },
     \"webmonitor\": {
         \"enable\": true,
-        \"host\": \"localhost\",
+        \"host\": \"$HOST\",
         \"port\": 85$padded_index,
         \"proto\": null,
         \"bind\": {
@@ -102,13 +149,26 @@ do
             \"host\": \"::\",
             \"port\": null
         }
-    }
+    },
+    \"electionTimeoutMin\": 400,
+    \"electionTimeoutMax\": 600,
+    \"rpcTimeout\": 100,
+    \"appendEntriesHeartbeatInterval\": 140,
+    \"appendEntriesRpcTimeoutMin\": 140,
+    \"appendEntriesRpcTimeoutMax\": 280,
+    \"requestIdTtl\": 28800000,
+    \"requestEntriesTtl\": 5000,
+    \"serverResponseTimeout\": 1000,
+    \"serverElectionGraceDelay\": 600,
+    \"peerMsgDataSize\": 1048576
 }
 " > $RAFT_CONFIG_FOLDER/raft-$index.json
-done
 
-for index in $(seq 1 $NUM_CONFIGS)
-do
-    padded_index=$(printf "%02d" $index)
-    printf "[uuid()]: { ws: 'ws://localhost:32$padded_index', http: 'http://localhost:33$padded_index' },\n"
+    if [ "$index" = "$NUM_CONFIGS" ]
+    then
+        PEERS="{ \"id\": \"raft$index\", \"url\": \"tcp://172.16.238.$index:8047\" }"
+    else
+        PEERS="$PEERS,
+        { \"id\": \"raft$index\", \"url\": \"tcp://172.16.238.$index:8047\" }"
+    fi
 done

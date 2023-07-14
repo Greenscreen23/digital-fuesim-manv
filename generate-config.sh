@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 NUM_CONFIGS=$1
 NUM_CPUS_SERVER=$2
 NUM_CPUS_CLIENT=$3
@@ -67,9 +67,9 @@ services:
             - IPS=$IPS
             - DELAY=$DELAY
         ports:
-            - 127.0.0.1:4201:4200
-            - 127.0.0.1:3301:3201
-            - 127.0.0.1:3201:3200
+            - 4201:4200
+            - 3301:3201
+            - 3201:3200
         env_file:
             - .env
         volumes:
@@ -95,9 +95,9 @@ do
             - IPS=$IPS
             - DELAY=$DELAY
         ports:
-            - 127.0.0.1:42$padded_index:4200
-            - 127.0.0.1:33$padded_index:3201
-            - 127.0.0.1:32$padded_index:3200
+            - 42$padded_index:4200
+            - 33$padded_index:3201
+            - 32$padded_index:3200
         env_file:
             - .env
         volumes:
@@ -166,9 +166,9 @@ do
 
     if [ "$index" = "$NUM_CONFIGS" ]
     then
-        PEERS="{ \"id\": \"raft$index\", \"url\": \"tcp://172.16.238.$index:8047\" }"
+        PEERS="{ \"id\": \"raft$index\", \"url\": \"ws://172.16.238.$index:8047\" }"
     else
         PEERS="$PEERS,
-        { \"id\": \"raft$index\", \"url\": \"tcp://172.16.238.$index:8047\" }"
+        { \"id\": \"raft$index\", \"url\": \"ws://172.16.238.$index:8047\" }"
     fi
 done

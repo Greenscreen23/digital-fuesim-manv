@@ -1,5 +1,5 @@
 IF=eth0
-OWN_IP=$(ip address show dev $IF | head -n 4 | tail -n 1 | cut -d ' ' -f6 | cut -d '/' -f 1)
+OWN_IP=$(ip address show dev $IF | head -n 3 | tail -n 1 | cut -d ' ' -f6 | cut -d '/' -f 1)
 
 tc qdisc add dev $IF root handle 1: prio
 tc qdisc add dev $IF parent 1:3 handle 30: netem delay $(echo $DELAY)ms

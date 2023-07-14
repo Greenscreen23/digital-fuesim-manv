@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import type { UUID } from 'digital-fuesim-manv-shared';
 import { uuid, cloneDeepMutable } from 'digital-fuesim-manv-shared';
 
-interface Origin {
+export interface Origin {
     ws: string;
     http: string;
 }
@@ -11,26 +11,23 @@ interface Origin {
     providedIn: 'root',
 })
 export class OriginService {
-    // Currently hardcoded for demonstration purposes.
-    private readonly origins: { [key: UUID]: Origin } = {
-        [uuid()]: { ws: 'ws://localhost:3201', http: 'http://localhost:3301' },
-        [uuid()]: { ws: 'ws://localhost:3202', http: 'http://localhost:3302' },
-        [uuid()]: { ws: 'ws://localhost:3203', http: 'http://localhost:3303' },
-    };
-
+    private allOrigins: { [key: UUID]: Origin } = {};
     private currentOrigins: { [key: UUID]: Origin } = {};
 
     constructor() {
+        const id = window.location.port.slice(2);
+        this.allOrigins[uuid()] = {
+            ws: `ws://fb14srv6.hpi.uni-potsdam.de:32${id}`,
+            http: `http://fb14srv6.hpi.uni-potsdam.de:33${id}`,
+        };
         this.resetOrigins();
-        this.currentOriginId = Object.keys(this.currentOrigins)[
-            Math.floor(Math.random() * Object.keys(this.currentOrigins).length)
-        ]!;
+        this.currentOriginId = Object.keys(this.currentOrigins)[0]!;
     }
 
     private currentOriginId: UUID;
 
     public resetOrigins() {
-        this.currentOrigins = cloneDeepMutable(this.origins);
+        this.currentOrigins = cloneDeepMutable(this.allOrigins);
     }
 
     public newOrigin(): boolean {
@@ -44,6 +41,17 @@ export class OriginService {
         ]!;
 
         return true;
+    }
+
+    public set origins(origins: Origin[]) {
+        this.allOrigins = {};
+        origins.forEach((origin) => {
+            this.allOrigins[uuid()] = origin;
+        });
+        this.resetOrigins();
+        this.currentOriginId = Object.keys(this.currentOrigins)[
+            Math.floor(Math.random() * origins.length)
+        ]!;
     }
 
     public get wsOrigin(): string {

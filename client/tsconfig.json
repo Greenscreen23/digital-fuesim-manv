@@ -1,0 +1,15 @@
+{
+    "extends": "../tsconfig.base.json",
+    "compilerOptions": {
+        "moduleResolution": "node",
+        "outDir": "./dist",
+        "rootDir": ".",
+        "types": ["node"],
+        "baseUrl": "./src",
+        "sourceMap": true, // For debugging
+        "emitDecoratorMetadata": true // For typeorm - See https://github.com/typeorm/typeorm/issues/2897
+    },
+    "references": [],
+    "include": ["src/**/*", "test/**/*"],
+    "exclude": ["node_modules"]
+}

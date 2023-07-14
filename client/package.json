@@ -1,0 +1,25 @@
+{
+    "name": "digital-fuesim-manv-client",
+    "version": "0.7.0",
+    "type": "module",
+    "scripts": {
+        "build": "tsc --project ./tsconfig.build.json"
+    },
+    "private": true,
+    "engines": {
+        "node": ">=18",
+        "npm": ">=8"
+    },
+    "dependencies": {
+        "digital-fuesim-manv-shared": "file:../shared",
+        "immer": "^10.0.2",
+        "lodash-es": "^4.17.21",
+        "rxjs": "^7.8.1",
+        "socket.io-client": "^4.7.1"
+    },
+    "devDependencies": {
+        "@types/lodash-es": "^4.17.7",
+        "@types/node": "^20.4.0",
+        "typescript": "^5.1.6"
+    }
+}

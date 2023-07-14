@@ -72,7 +72,7 @@ async function main() {
         }
     }
     // eslint-disable-next-line no-new
-    new FuesimServer(databaseService, peers);
+    new FuesimServer(databaseService, peers, raftConfig.origins);
 }
 
 main();

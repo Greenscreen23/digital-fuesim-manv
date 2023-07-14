@@ -13,6 +13,7 @@ import {
 import { getHealth } from './http-handler/api/health';
 import { secureHttp } from './http-handler/secure-http';
 import type { BackendWebsocketServer } from './backend-websocket';
+import { Origin, getOrigins } from './http-handler/api/origins';
 
 export class ExerciseHttpServer {
     public readonly httpServer: HttpServer;
@@ -22,7 +23,8 @@ export class ExerciseHttpServer {
     constructor(
         app: Express,
         databaseService: DatabaseService,
-        backendWebsocketServer: BackendWebsocketServer
+        backendWebsocketServer: BackendWebsocketServer,
+        origins: Origin[],
     ) {
         // TODO: Temporary allow all
         app.use(cors());
@@ -68,6 +70,12 @@ export class ExerciseHttpServer {
         app.get('/api/exercise/:exerciseId/history', async (req, res) =>
             secureHttp(
                 async () => getExerciseHistory(req.params.exerciseId),
+                res
+            )
+        );
+        app.get('/api/origins', async (_req, res) =>
+            secureHttp(
+                async () => getOrigins(origins),
                 res
             )
         );

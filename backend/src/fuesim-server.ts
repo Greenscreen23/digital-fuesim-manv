@@ -7,6 +7,7 @@ import { Config } from './config';
 import type { DatabaseService } from './database/services/database-service';
 import type { ExerciseWrapper } from './exercise/exercise-wrapper';
 import { BackendWebsocketServer } from './exercise/backend-websocket';
+import { Origin } from './exercise/http-handler/api/origins';
 
 export class FuesimServer {
     private readonly _httpServer: ExerciseHttpServer;
@@ -94,7 +95,8 @@ export class FuesimServer {
 
     constructor(
         private readonly databaseService: DatabaseService,
-        peers: { id: string; url: string }[]
+        peers: { id: string; url: string }[],
+        origins: Origin[]
     ) {
         const app = express();
 
@@ -109,7 +111,8 @@ export class FuesimServer {
         this._httpServer = new ExerciseHttpServer(
             app,
             databaseService,
-            this._backendWebsocketServer
+            this._backendWebsocketServer,
+            origins
         );
         if (Config.useDb) {
             this.saveHandler.start();

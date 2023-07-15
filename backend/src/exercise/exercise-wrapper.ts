@@ -33,6 +33,7 @@ import { ActionWrapper } from './action-wrapper';
 import type { ClientWrapper } from './client-wrapper';
 import { exerciseMap } from './exercise-map';
 import { patientTick } from './patient-ticking';
+import { ApplyExerciseAction } from './backend-websocket';
 
 export class ExerciseWrapper extends NormalType<
     ExerciseWrapper,
@@ -492,7 +493,10 @@ export class ExerciseWrapper extends NormalType<
         this.clients.forEach((client) => client.emitAction(action, id));
     }
 
-    public addClient(clientWrapper: ClientWrapper) {
+    public addClient(
+        clientWrapper: ClientWrapper,
+        onApply: (action: ApplyExerciseAction, exerciseId: string) => void
+    ) {
         if (clientWrapper.client === undefined) {
             return;
         }
@@ -501,6 +505,14 @@ export class ExerciseWrapper extends NormalType<
             type: '[Client] Add client',
             client,
         };
+        onApply(
+            {
+                type: '[Backend] Apply Exercise Action',
+                action: addClientAction,
+                emitterId: null,
+            },
+            this.trainerId
+        );
         this.applyAction(addClientAction, client.id);
         // Only after all this add the client in order to not send the action adding itself to it
         this.addExistingClient(clientWrapper);
@@ -510,7 +522,10 @@ export class ExerciseWrapper extends NormalType<
         this.clients.add(clientWrapper);
     }
 
-    public removeClient(clientWrapper: ClientWrapper) {
+    public removeClient(
+        clientWrapper: ClientWrapper,
+        onApply: (action: ApplyExerciseAction, exerciseId: string) => void
+    ) {
         if (!this.clients.has(clientWrapper)) {
             // clientWrapper not part of this exercise
             return;
@@ -520,6 +535,14 @@ export class ExerciseWrapper extends NormalType<
             type: '[Client] Remove client',
             clientId: client.id,
         };
+        onApply(
+            {
+                type: '[Backend] Apply Exercise Action',
+                action: removeClientAction,
+                emitterId: null,
+            },
+            this.trainerId
+        );
         this.applyAction(removeClientAction, client.id, () => {
             clientWrapper.disconnect();
             this.clients.delete(clientWrapper);

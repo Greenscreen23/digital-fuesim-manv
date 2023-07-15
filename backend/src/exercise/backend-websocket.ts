@@ -26,7 +26,7 @@ export interface DeleteExerciseAction {
 export interface ApplyExerciseAction {
     type: '[Backend] Apply Exercise Action';
     action: ExerciseAction;
-    emitterId: string;
+    emitterId: string | null;
 }
 
 interface ApplyAction {

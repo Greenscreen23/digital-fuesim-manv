@@ -64,18 +64,7 @@ export class ExerciseWebsocketServer {
                 console.warn('client without exercise disconnected')
                 return;
             }
-            this.backendWebsocketServer.publishAction(
-                {
-                    type: '[Backend] Apply Exercise Action',
-                    action: {
-                        type: '[Client] Remove client',
-                        clientId: clientWrapper.client.id,
-                    },
-                    emitterId: clientWrapper.client.id,
-                },
-                clientWrapper.exercise.trainerId
-            );
-            clientWrapper.leaveExercise();
+            clientWrapper.leaveExercise((action, exerciseId) => this.backendWebsocketServer.publishAction(action, exerciseId));
             clientMap.delete(client);
         });
     }

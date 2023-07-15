@@ -22,7 +22,7 @@ export class ClientWrapper {
         clientName: string,
         clientId: UUID | undefined,
         viewRestrictedToViewportId: UUID | undefined,
-        onAddClient: (action: ApplyExerciseAction, exerciseId: string) => void
+        onApply: (action: ApplyExerciseAction, exerciseId: string) => void
     ): UUID | undefined {
         const exercise = exerciseMap.get(exerciseId);
         if (!exercise) {
@@ -42,7 +42,7 @@ export class ClientWrapper {
                     viewportId: viewRestrictedToViewportId,
                     clientId: this.relatedExerciseClient.id,
                 };
-                onAddClient(
+                onApply(
                     {
                         type: '[Backend] Apply Exercise Action',
                         action,
@@ -55,6 +55,9 @@ export class ClientWrapper {
             this.chosenExercise.addExistingClient(this);
             return clientId;
         }
+        if (clientId && !clients[clientId]) {
+            console.warn('Client tried to join which id was not found', clientId, clients)
+        }
 
         // Although getRoleFromUsedId may throw an error, this should never happen here
         // as the provided id is guaranteed to be one of the ids of the exercise as the exercise
@@ -65,19 +68,19 @@ export class ClientWrapper {
             role,
             viewRestrictedToViewportId
         );
-        this.chosenExercise.addClient(this);
+        this.chosenExercise.addClient(this, onApply);
         return this.relatedExerciseClient.id;
     }
 
     /**
      * Note that this method simply returns when the client did not join an exercise.
      */
-    public leaveExercise() {
+    public leaveExercise(onApply: (action: ApplyExerciseAction, exerciseId: string) => void) {
         if (this.chosenExercise === undefined) {
             // The client has not joined an exercise. Do nothing.
             return;
         }
-        this.chosenExercise.removeClient(this);
+        this.chosenExercise.removeClient(this, onApply);
     }
 
     public get exercise(): ExerciseWrapper | undefined {

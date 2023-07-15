@@ -8,7 +8,7 @@ import { secureOn } from './secure-on';
 export const registerJoinExerciseHandler = (
     io: ExerciseServer,
     client: ExerciseSocket,
-    onAddClient: (action: ApplyExerciseAction, exerciseId: string) => void
+    onApply: (action: ApplyExerciseAction, exerciseId: string) => void
 ) => {
     secureOn(
         client,
@@ -34,7 +34,7 @@ export const registerJoinExerciseHandler = (
             try {
                 newClientId = clientMap
                     .get(client)
-                    ?.joinExercise(exerciseId, clientName, clientId, viewRestrictedToViewportId, onAddClient);
+                    ?.joinExercise(exerciseId, clientName, clientId, viewRestrictedToViewportId, onApply);
             } catch (e: unknown) {
                 if (e instanceof ValidationErrorWrapper) {
                     callback({
@@ -54,17 +54,6 @@ export const registerJoinExerciseHandler = (
                 });
                 return;
             }
-            onAddClient(
-                {
-                    type: '[Backend] Apply Exercise Action',
-                    action: {
-                        type: '[Client] Add client',
-                        client: clientWrapper.client!,
-                    },
-                    emitterId: clientWrapper.client!.id,
-                },
-                exerciseId
-            );
             const exercise = clientMap.get(client)!.exercise!;
             callback({
                 success: true,

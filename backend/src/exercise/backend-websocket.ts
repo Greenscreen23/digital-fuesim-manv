@@ -54,6 +54,8 @@ export class BackendWebsocketServer {
         }
     >;
 
+    private readonly pendingExercises = new Map<string, ApplyExerciseAction[]>();
+
     constructor(
         peers: { id: string; url: string }[],
         private readonly databaseService: DatabaseService
@@ -173,6 +175,7 @@ export class BackendWebsocketServer {
         exerciseId: string
     ) {
         const { participantId, trainerId, importObject } = action;
+        this.pendingExercises.set(exerciseId, []);
         const newExerciseOrError = await createExercise(
             this.databaseService,
             importObject,
@@ -181,6 +184,7 @@ export class BackendWebsocketServer {
         );
 
         if (isString(newExerciseOrError)) {
+            this.pendingExercises.delete(exerciseId);
             console.error(
                 `Tried to create exercise ${exerciseId} but failed: ${newExerciseOrError}`
             );
@@ -189,6 +193,12 @@ export class BackendWebsocketServer {
 
         exerciseMap.set(participantId, newExerciseOrError);
         exerciseMap.set(trainerId, newExerciseOrError);
+        this.pendingExercises.get(exerciseId)?.forEach((action) => {
+            this.applyAction(action, exerciseId);
+        })
+
+        this.pendingExercises.delete(exerciseId);
+
         console.log('created exercise', trainerId);
     }
 
@@ -208,6 +218,12 @@ export class BackendWebsocketServer {
     private applyAction(action: ApplyExerciseAction, exerciseId: string) {
         const exerciseWrapper = exerciseMap.get(exerciseId);
         if (!exerciseWrapper) {
+            const pending = this.pendingExercises.get(exerciseId);
+            if (pending) {
+                pending.push(action);
+                return;
+            }
+
             console.error(
                 `Tried to apply action ${action.action.type} but the exercise ${exerciseId} does not exist.`
             );

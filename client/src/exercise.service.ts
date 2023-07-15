@@ -98,6 +98,7 @@ export class ExerciseService {
         const ownClientId = this.store.ownClientId;
         const lastClientName = this.store.lastClientName;
         const ownClient = this.store.state.clients[ownClientId]!;
+        const viewRestrictedToViewportId = ownClient.viewRestrictedToViewportId;
 
         console.error(process.env['ID'], ': rejoining exercise');
 
@@ -140,6 +141,7 @@ export class ExerciseService {
                             exerciseId,
                             lastClientName,
                             ownClientId,
+                            viewRestrictedToViewportId,
                             resolve
                         );
                     });
@@ -247,6 +249,7 @@ export class ExerciseService {
                 'joinExercise',
                 exerciseId,
                 clientName,
+                undefined,
                 undefined,
                 resolve
             );

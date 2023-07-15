@@ -4,6 +4,7 @@ import type {
     ExerciseTimeline,
     Role,
     StateExport,
+    StateHistoryCompound,
     UUID,
 } from 'digital-fuesim-manv-shared';
 import {
@@ -603,6 +604,15 @@ export class ExerciseWrapper extends NormalType<
             );
             this.markAsSaved();
         }
+    }
+
+    public getTimeLineSync(): StateHistoryCompound {
+        return {
+            initialState: cloneDeepMutable(this.initialState),
+            actionHistory: this.temporaryActionHistory
+                .sort((a, b) => a.index - b.index)
+                .map((wrapper) => wrapper.action),
+        };
     }
 
     public async getTimeLine(): Promise<ExerciseTimeline> {

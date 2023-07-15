@@ -17,6 +17,7 @@ export const registerJoinExerciseHandler = (
             exerciseId: string,
             clientName: string,
             clientId: UUID | undefined,
+            viewRestrictedToViewportId: UUID | undefined,
             callback
         ) => {
             // When this listener is registered the socket is in the map.
@@ -33,7 +34,7 @@ export const registerJoinExerciseHandler = (
             try {
                 newClientId = clientMap
                     .get(client)
-                    ?.joinExercise(exerciseId, clientName, clientId);
+                    ?.joinExercise(exerciseId, clientName, clientId, viewRestrictedToViewportId, onAddClient);
             } catch (e: unknown) {
                 if (e instanceof ValidationErrorWrapper) {
                     callback({

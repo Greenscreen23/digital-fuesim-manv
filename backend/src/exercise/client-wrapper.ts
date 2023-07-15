@@ -3,6 +3,7 @@ import { Client } from 'digital-fuesim-manv-shared';
 import type { ExerciseSocket } from '../exercise-server';
 import { exerciseMap } from './exercise-map';
 import type { ExerciseWrapper } from './exercise-wrapper';
+import { ApplyExerciseAction } from './backend-websocket';
 
 export class ClientWrapper {
     public constructor(private readonly socket: ExerciseSocket) {}
@@ -19,7 +20,9 @@ export class ClientWrapper {
     public joinExercise(
         exerciseId: string,
         clientName: string,
-        clientId: UUID | undefined
+        clientId: UUID | undefined,
+        viewRestrictedToViewportId: UUID | undefined,
+        onAddClient: (action: ApplyExerciseAction, exerciseId: string) => void
     ): UUID | undefined {
         const exercise = exerciseMap.get(exerciseId);
         if (!exercise) {
@@ -29,7 +32,26 @@ export class ClientWrapper {
 
         const clients = this.chosenExercise.getStateSnapshot().clients;
         if (clientId && clients[clientId]) {
-            this.relatedExerciseClient = clients[clientId];
+            this.relatedExerciseClient = clients[clientId]!;
+            if (
+                this.relatedExerciseClient.viewRestrictedToViewportId !=
+                viewRestrictedToViewportId
+            ) {
+                const action: ExerciseAction = {
+                    type: '[Client] Restrict to viewport',
+                    viewportId: viewRestrictedToViewportId,
+                    clientId: this.relatedExerciseClient.id,
+                };
+                onAddClient(
+                    {
+                        type: '[Backend] Apply Exercise Action',
+                        action,
+                        emitterId: this.relatedExerciseClient.id,
+                    },
+                    exerciseId
+                );
+                this.chosenExercise.applyAction(action, this.relatedExerciseClient.id);
+            }
             this.chosenExercise.addExistingClient(this);
             return clientId;
         }
@@ -38,7 +60,11 @@ export class ClientWrapper {
         // as the provided id is guaranteed to be one of the ids of the exercise as the exercise
         // was fetched with this exact id from the exercise map.
         const role = this.chosenExercise.getRoleFromUsedId(exerciseId);
-        this.relatedExerciseClient = Client.create(clientName, role, undefined);
+        this.relatedExerciseClient = Client.create(
+            clientName,
+            role,
+            viewRestrictedToViewportId
+        );
         this.chosenExercise.addClient(this);
         return this.relatedExerciseClient.id;
     }

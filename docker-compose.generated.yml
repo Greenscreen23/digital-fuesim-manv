@@ -16,6 +16,7 @@ services:
         environment:
             - DFM_USE_RAFT=true
             - DFM_RAFT_CONFIG_PATH=/usr/local/app/raft.json
+            - DEBUG=socket*,engine*,-socket.io-parser,-socket.io:socket,-engine:polling,-engine:ws,-engine:socket,-socket.io-client:manager,-engine.io-client:polling
         ports:
             - 127.0.0.1:4201:4200
             - 127.0.0.1:3301:3201
@@ -35,6 +36,7 @@ services:
         environment:
             - DFM_USE_RAFT=true
             - DFM_RAFT_CONFIG_PATH=/usr/local/app/raft.json
+            - DEBUG=socket*,engine*,-socket.io-parser,-socket.io:socket,-engine:polling,-engine:ws,-engine:socket,-socket.io-client:manager,-engine.io-client:polling
         ports:
             - 127.0.0.1:4202:4200
             - 127.0.0.1:3302:3201
@@ -54,6 +56,7 @@ services:
         environment:
             - DFM_USE_RAFT=true
             - DFM_RAFT_CONFIG_PATH=/usr/local/app/raft.json
+            - DEBUG=socket*,engine*,-socket.io-parser,-socket.io:socket,-engine:polling,-engine:ws,-engine:socket,-socket.io-client:manager,-engine.io-client:polling
         ports:
             - 127.0.0.1:4203:4200
             - 127.0.0.1:3303:3201

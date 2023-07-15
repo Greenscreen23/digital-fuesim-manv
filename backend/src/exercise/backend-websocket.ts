@@ -1,4 +1,8 @@
-import type { StateExport, ExerciseAction } from 'digital-fuesim-manv-shared';
+import {
+    StateExport,
+    type ExerciseAction,
+    cloneDeepMutable,
+} from 'digital-fuesim-manv-shared';
 import { Server } from 'socket.io';
 import type { Socket } from 'socket.io-client';
 import { io } from 'socket.io-client';
@@ -6,6 +10,7 @@ import { isString } from 'lodash-es';
 import type { DatabaseService } from '../database/services/database-service';
 import { exerciseMap } from './exercise-map';
 import { createExercise } from './exercise-helpers';
+import { ExerciseWrapper } from './exercise-wrapper';
 
 export interface CreateExerciseAction {
     type: '[Backend] Create Exercise';
@@ -42,29 +47,95 @@ export class BackendWebsocketServer {
     >;
     private readonly peers: Map<
         string,
-        Socket<ServerToClientEvents, ClientToServerEvents>
+        {
+            socket: Socket<ServerToClientEvents, ClientToServerEvents>;
+            queue: ApplyAction[];
+            initializing: boolean;
+        }
     >;
 
     constructor(
         peers: { id: string; url: string }[],
         private readonly databaseService: DatabaseService
     ) {
-        this.receivingSocket = new Server(8047);
+        this.receivingSocket = new Server(8047, {
+            transports: ['websocket'],
+            maxHttpBufferSize: 1e10,
+        });
         this.peers = new Map(
             peers.map(({ id, url }) => [
                 id,
-                io(url, { transports: ['websocket'] }),
+                {
+                    socket: io(url, {
+                        transports: ['websocket'],
+                    }),
+                    queue: [],
+                    initializing: false,
+                },
             ])
         );
 
-        this.peers.forEach((socket, id) => {
-            socket.connect().on('connect_error', (err) => {
-                console.error(`Failed to connect to ${id}: ${err}`);
-            });
+        this.peers.forEach((peer, id) => {
+            peer.socket
+                .connect()
+                .on('connect_error', (err) => {
+                    console.error(`Failed to connect to ${id}: ${err}`);
+                })
+                .on('disconnect', (reason) => {
+                    console.error('Disconnected from', id, 'because', reason);
+                })
+                .on('connect', () => {
+                    console.log(`Connected to ${id}`);
+                    peer.initializing = true;
+                    const exercises = new Map<
+                        ExerciseWrapper,
+                        { trainerId?: string; participantId?: string }
+                    >();
+                    exerciseMap.forEach((exercise, key) => {
+                        const keys = exercises.get(exercise) ?? {};
+                        if (key.length === 8) {
+                            keys.trainerId = key;
+                        } else {
+                            keys.participantId = key;
+                        }
+                        exercises.set(exercise, keys);
+                    });
+
+                    exercises.forEach(
+                        ({ trainerId, participantId }, exercise) => {
+                            if (!trainerId || !participantId) {
+                                console.error('Got exercise without keys');
+                                return;
+                            }
+                            peer.socket.emit('sendAction', {
+                                action: {
+                                    type: '[Backend] Create Exercise',
+                                    trainerId,
+                                    participantId,
+                                    importObject: new StateExport(
+                                        cloneDeepMutable(
+                                            exercise.getStateSnapshot()
+                                        ),
+                                        undefined
+                                    ),
+                                },
+                                exerciseId: trainerId,
+                            });
+                        }
+                    );
+
+                    peer.queue.forEach(({ action, exerciseId }) => {
+                        peer.socket.emit('sendAction', { action, exerciseId });
+                    });
+                    peer.queue = [];
+                    peer.initializing = false;
+                });
         });
 
         this.receivingSocket.on('connection', (socket) => {
+            console.log('new connection');
             socket.on('sendAction', ({ action, exerciseId }) => {
+                console.log('got action', action.type, 'for', exerciseId);
                 if (action.type === '[Backend] Create Exercise') {
                     this.createExercise(action, exerciseId);
                 } else if (action.type === '[Backend] Delete Exercise') {
@@ -73,10 +144,8 @@ export class BackendWebsocketServer {
                     this.applyAction(action, exerciseId);
                 }
             });
-
-            socket.on('disconnect', () => {
-                socket.removeAllListeners();
-                socket.disconnect();
+            socket.on('disconnect', (reason) => {
+                console.log('disconnected because', reason);
             });
         });
     }
@@ -88,8 +157,14 @@ export class BackendWebsocketServer {
             | DeleteExerciseAction,
         exerciseId: string
     ) {
-        this.peers.forEach((socket) => {
-            socket.emit('sendAction', { action, exerciseId });
+        this.peers.forEach((peer) => {
+            if (peer.initializing) {
+                peer.queue.push({ action, exerciseId });
+                return;
+            }
+            if (peer.socket.connected) {
+                peer.socket.emit('sendAction', { action, exerciseId });
+            }
         });
     }
 
@@ -114,6 +189,7 @@ export class BackendWebsocketServer {
 
         exerciseMap.set(participantId, newExerciseOrError);
         exerciseMap.set(trainerId, newExerciseOrError);
+        console.log('created exercise', trainerId);
     }
 
     private deleteExercise(_action: DeleteExerciseAction, exerciseId: string) {
@@ -126,6 +202,7 @@ export class BackendWebsocketServer {
         }
 
         exerciseWrapper.deleteExercise();
+        console.log('deleted exercise', exerciseId);
     }
 
     private applyAction(action: ApplyExerciseAction, exerciseId: string) {
@@ -138,5 +215,6 @@ export class BackendWebsocketServer {
         }
 
         exerciseWrapper.applyAction(action.action, action.emitterId);
+        console.log('applied action', action.action.type, 'to', exerciseId);
     }
 }

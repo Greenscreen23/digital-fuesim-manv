@@ -239,9 +239,18 @@ export class SimulatedParticipant {
 
     private getCurrentViewport(): Viewport {
         const ownClientId = this.store.ownClientId;
-        const ownClient = this.store.state.clients[ownClientId]!;
+        const ownClient = this.store.state.clients[ownClientId];
+        if (!ownClient) {
+            throw new Error('Own client not found')
+        }
+        if (!ownClient.viewRestrictedToViewportId) {
+            throw new Error('Own client has no viewport restriction')
+        }
         const ownViewport =
-            this.store.state.viewports[ownClient.viewRestrictedToViewportId!]!;
+            this.store.state.viewports[ownClient.viewRestrictedToViewportId];
+        if (!ownViewport) {
+            throw new Error('Own viewport not found')
+        }
         return ownViewport;
     }
 

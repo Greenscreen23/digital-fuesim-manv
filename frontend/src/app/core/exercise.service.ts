@@ -146,6 +146,7 @@ export class ExerciseService {
                     exerciseId,
                     clientName,
                     clientId,
+                    undefined,
                     resolve
                 );
             }

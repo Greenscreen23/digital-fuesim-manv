@@ -54,17 +54,7 @@ export class ExerciseWebsocketServer {
         );
 
         // Register disconnect handler
-        client.on('disconnect', () => {
-            const clientWrapper = clientMap.get(client);
-            if (!clientWrapper?.client) {
-                console.warn('unknown client disconnected')
-                return;
-            }
-            if (!clientWrapper.exercise) {
-                console.warn('client without exercise disconnected')
-                return;
-            }
-            clientWrapper.leaveExercise((action, exerciseId) => this.backendWebsocketServer.publishAction(action, exerciseId));
+        client.on('disconnect', async () => {
             clientMap.delete(client);
         });
     }

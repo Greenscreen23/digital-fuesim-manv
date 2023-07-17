@@ -80,7 +80,7 @@ export class FuesimServer {
         exerciseMap.forEach((exercise, id) => {
             if (exercise.getRoleFromUsedId(id) !== 'trainer') {
                 exercise.tick(this.tickInterval, (action, exerciseId) => {
-                    this.backendWebsocketServer.publishAction(
+                    return this.backendWebsocketServer.publishAction(
                         {
                             type: '[Backend] Apply Exercise Action',
                             action,

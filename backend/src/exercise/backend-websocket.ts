@@ -35,7 +35,7 @@ interface ApplyAction {
 }
 
 interface ClientToServerEvents {
-    sendAction: (action: ApplyAction) => void;
+    sendAction: (action: ApplyAction, callback: () => void) => void;
 }
 
 interface ServerToClientEvents {}
@@ -122,12 +122,12 @@ export class BackendWebsocketServer {
                                     ),
                                 },
                                 exerciseId: trainerId,
-                            });
+                            }, () => {});
                         }
                     );
 
                     peer.queue.forEach(({ action, exerciseId }) => {
-                        peer.socket.emit('sendAction', { action, exerciseId });
+                        peer.socket.emit('sendAction', { action, exerciseId }, () => {});
                     });
                     peer.queue = [];
                     peer.initializing = false;
@@ -136,7 +136,7 @@ export class BackendWebsocketServer {
 
         this.receivingSocket.on('connection', (socket) => {
             console.log('new connection');
-            socket.on('sendAction', ({ action, exerciseId }) => {
+            socket.on('sendAction', ({ action, exerciseId }, callback) => {
                 console.log('got action', action.type, 'for', exerciseId);
                 if (action.type === '[Backend] Create Exercise') {
                     this.createExercise(action, exerciseId);
@@ -145,6 +145,7 @@ export class BackendWebsocketServer {
                 } else {
                     this.applyAction(action, exerciseId);
                 }
+                callback();
             });
             socket.on('disconnect', (reason) => {
                 console.log('disconnected because', reason);
@@ -152,22 +153,26 @@ export class BackendWebsocketServer {
         });
     }
 
-    public publishAction(
+    public async publishAction(
         action:
             | ApplyExerciseAction
             | CreateExerciseAction
             | DeleteExerciseAction,
         exerciseId: string
     ) {
+        const acks: Promise<void>[] = [];
         this.peers.forEach((peer) => {
             if (peer.initializing) {
                 peer.queue.push({ action, exerciseId });
                 return;
             }
             if (peer.socket.connected) {
-                peer.socket.emit('sendAction', { action, exerciseId });
+                acks.push(new Promise(resolve => {
+                    peer.socket.emit('sendAction', { action, exerciseId }, resolve);
+                }))
             }
         });
+        await Promise.all(acks);
     }
 
     private async createExercise(

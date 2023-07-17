@@ -8,12 +8,12 @@ import { secureOn } from './secure-on';
 export const registerJoinExerciseHandler = (
     io: ExerciseServer,
     client: ExerciseSocket,
-    onApply: (action: ApplyExerciseAction, exerciseId: string) => void
+    onApply: (action: ApplyExerciseAction, exerciseId: string) => Promise<void>
 ) => {
     secureOn(
         client,
         'joinExercise',
-        (
+        async (
             exerciseId: string,
             clientName: string,
             clientId: UUID | undefined,
@@ -32,7 +32,7 @@ export const registerJoinExerciseHandler = (
             }
             let newClientId: UUID | undefined;
             try {
-                newClientId = clientMap
+                newClientId = await clientMap
                     .get(client)
                     ?.joinExercise(exerciseId, clientName, clientId, viewRestrictedToViewportId, onApply);
             } catch (e: unknown) {

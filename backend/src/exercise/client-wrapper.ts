@@ -17,13 +17,13 @@ export class ClientWrapper {
      * @param clientName The public name of the client.
      * @returns The joined client's id, or undefined when the exercise doesn't exists.
      */
-    public joinExercise(
+    public async joinExercise(
         exerciseId: string,
         clientName: string,
         clientId: UUID | undefined,
         viewRestrictedToViewportId: UUID | undefined,
-        onApply: (action: ApplyExerciseAction, exerciseId: string) => void
-    ): UUID | undefined {
+        onApply: (action: ApplyExerciseAction, exerciseId: string) => Promise<void>
+    ): Promise<UUID | undefined> {
         const exercise = exerciseMap.get(exerciseId);
         if (!exercise) {
             return undefined;
@@ -42,7 +42,7 @@ export class ClientWrapper {
                     viewportId: viewRestrictedToViewportId,
                     clientId: this.relatedExerciseClient.id,
                 };
-                onApply(
+                await onApply(
                     {
                         type: '[Backend] Apply Exercise Action',
                         action,
@@ -68,19 +68,19 @@ export class ClientWrapper {
             role,
             viewRestrictedToViewportId
         );
-        this.chosenExercise.addClient(this, onApply);
+        await this.chosenExercise.addClient(this, onApply);
         return this.relatedExerciseClient.id;
     }
 
     /**
      * Note that this method simply returns when the client did not join an exercise.
      */
-    public leaveExercise(onApply: (action: ApplyExerciseAction, exerciseId: string) => void) {
+    public async leaveExercise(onApply: (action: ApplyExerciseAction, exerciseId: string) => Promise<void>) {
         if (this.chosenExercise === undefined) {
             // The client has not joined an exercise. Do nothing.
             return;
         }
-        this.chosenExercise.removeClient(this, onApply);
+        await this.chosenExercise.removeClient(this, onApply);
     }
 
     public get exercise(): ExerciseWrapper | undefined {

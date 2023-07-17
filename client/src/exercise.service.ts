@@ -102,7 +102,7 @@ export class ExerciseService {
 
         console.error(process.env['ID'], ': rejoining exercise');
 
-        while (this.originService.newOrigin()) {
+        do {
             try {
                 this.socket.off('performAction');
                 this.socket.off('disconnect');
@@ -173,7 +173,7 @@ export class ExerciseService {
                     console.error(e);
                 }
             }
-        }
+        } while (this.originService.newOrigin());
 
         console.error('Es konnte kein Server erreicht werden');
     }

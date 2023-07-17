@@ -13,12 +13,12 @@ import { secureOn } from './secure-on';
 export const registerProposeActionHandler = (
     io: ExerciseServer,
     client: ExerciseSocket,
-    onApply: (action: ApplyExerciseAction, exerciseId: string) => void
+    onApply: (action: ApplyExerciseAction, exerciseId: string) => Promise<void>
 ) => {
     secureOn(
         client,
         'proposeAction',
-        (action: ExerciseAction, id: UUID | undefined, callback): void => {
+        async (action: ExerciseAction, id: UUID | undefined, callback): Promise<void> => {
             const clientWrapper = clientMap.get(client);
             if (!clientWrapper) {
                 // There is no client. Skip.
@@ -71,7 +71,7 @@ export const registerProposeActionHandler = (
             // 4. apply & broadcast action (+ save to timeline)
             try {
                 exerciseWrapper.applyAction(action, clientWrapper.client.id, undefined, id);
-                onApply(
+                await onApply(
                     {
                         type: '[Backend] Apply Exercise Action',
                         action,

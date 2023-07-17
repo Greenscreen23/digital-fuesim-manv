@@ -17,13 +17,8 @@ DISTRIBUTION_TO_SLEEP_CONVERSION_RATE = 3_600
 HAZARD_RATE_FACTOR = 1
 
 NODES = [
-    ["dfm1", "raft1"],
-    ["dfm2", "raft2"],
-    ["dfm3", "raft3"],
-    ["dfm4", "raft4"],
-    ["dfm5", "raft5"],
-    ["dfm6", "raft6"],
-    ["dfm7", "raft7"],
+    "dfm1",
+    "dfm2"
 ]
 
 parser = ArgumentParser(
@@ -42,7 +37,7 @@ DOCKER_PREFIX = ["/usr/bin/docker", "compose", "-f", args.docker_compose_config]
 generator = default_rng()
 
 start = datetime.now()
-log = dict((node[0], [{"started": 0, "startdrift": 0}]) for node in NODES)
+log = dict((node, [{"started": 0, "startdrift": 0}]) for node in NODES)
 
 
 def printDuration(time):
@@ -65,14 +60,14 @@ async def playGremlin(node):
         printDuration(avail_interval)
 
         await asyncio.sleep(avail_interval)
-        subprocess.run([*DOCKER_PREFIX, "stop", "-t0", node[0], node[1]])
+        subprocess.run([*DOCKER_PREFIX, "stop", "-t0", node])
         if args.delete_on_stop:
-            subprocess.run([*DOCKER_PREFIX, "rm", "-f", node[0], node[1]])
+            subprocess.run([*DOCKER_PREFIX, "rm", "-f", node])
 
         stopped = datetime.now()
         drift = (stopped - started).total_seconds() - avail_interval
-        log[node[0]][-1]["stopped"] = (stopped - start).total_seconds()
-        log[node[0]][-1]["stopdrift"] = drift
+        log[node][-1]["stopped"] = (stopped - start).total_seconds()
+        log[node][-1]["stopdrift"] = drift
         print(f"stopped nodes {node} with drift {drift}")
 
         unavail_interval = (
@@ -86,13 +81,13 @@ async def playGremlin(node):
 
         await asyncio.sleep(unavail_interval)
         if args.delete_on_stop:
-            subprocess.run([*DOCKER_PREFIX, "up", "-d", node[0], node[1]])
+            subprocess.run([*DOCKER_PREFIX, "up", "-d", node])
         else:
-            subprocess.run([*DOCKER_PREFIX, "start", node[0], node[1]])
+            subprocess.run([*DOCKER_PREFIX, "start", node])
 
         started = datetime.now()
         drift = (started - stopped).total_seconds() - unavail_interval
-        log[node[0]].append(
+        log[node].append(
             {"started": (started - start).total_seconds(), "startdrift": drift}
         )
         print(f"started nodes {node} with drift {drift}")

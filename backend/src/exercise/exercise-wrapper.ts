@@ -209,10 +209,10 @@ export class ExerciseWrapper extends NormalType<
      */
     public readonly tick = async (
         tickInterval: number,
-        onApply: (action: ExerciseAction, exerciseId: string) => void
+        onApply: (action: ExerciseAction, exerciseId: string) => Promise<void>
     ) => {
         if (!this.started) return;
-        if (this.clients.size === 0) return;
+        if (this.clients.size * 2 <= Object.keys(this.getStateSnapshot().clients).length) return;
         try {
             const patientUpdates = patientTick(
                 this.getStateSnapshot(),
@@ -230,7 +230,7 @@ export class ExerciseWrapper extends NormalType<
                 tickInterval,
             };
             this.applyAction(updateAction, this.emitterId);
-            onApply(updateAction, this.trainerId);
+            await onApply(updateAction, this.trainerId);
             this.tickCounter++;
             this.markAsModified();
         } catch (e: unknown) {
@@ -241,7 +241,7 @@ export class ExerciseWrapper extends NormalType<
                     type: '[Exercise] Pause',
                 } as const;
                 this.applyAction(action, this.emitterId);
-                onApply(action, this.trainerId);
+                await onApply(action, this.trainerId);
                 this.markAsModified();
             } catch {
                 // Alright, this is enough. Something is fundamentally broken.
@@ -392,14 +392,6 @@ export class ExerciseWrapper extends NormalType<
                 },
                 this.emitterId
             );
-        // Remove all clients from state
-        Object.values(this.currentState.clients).forEach((client) => {
-            const removeClientAction: ExerciseAction = {
-                type: '[Client] Remove client',
-                clientId: client.id,
-            };
-            this.reduce(removeClientAction, this.emitterId);
-        });
     }
 
     static async restoreAllExercises(
@@ -493,9 +485,9 @@ export class ExerciseWrapper extends NormalType<
         this.clients.forEach((client) => client.emitAction(action, id));
     }
 
-    public addClient(
+    public async addClient(
         clientWrapper: ClientWrapper,
-        onApply: (action: ApplyExerciseAction, exerciseId: string) => void
+        onApply: (action: ApplyExerciseAction, exerciseId: string) => Promise<void>
     ) {
         if (clientWrapper.client === undefined) {
             return;
@@ -505,7 +497,7 @@ export class ExerciseWrapper extends NormalType<
             type: '[Client] Add client',
             client,
         };
-        onApply(
+        await onApply(
             {
                 type: '[Backend] Apply Exercise Action',
                 action: addClientAction,
@@ -522,9 +514,9 @@ export class ExerciseWrapper extends NormalType<
         this.clients.add(clientWrapper);
     }
 
-    public removeClient(
+    public async removeClient(
         clientWrapper: ClientWrapper,
-        onApply: (action: ApplyExerciseAction, exerciseId: string) => void
+        onApply: (action: ApplyExerciseAction, exerciseId: string) => Promise<void>
     ) {
         if (!this.clients.has(clientWrapper)) {
             // clientWrapper not part of this exercise
@@ -535,7 +527,7 @@ export class ExerciseWrapper extends NormalType<
             type: '[Client] Remove client',
             clientId: client.id,
         };
-        onApply(
+        await onApply(
             {
                 type: '[Backend] Apply Exercise Action',
                 action: removeClientAction,
